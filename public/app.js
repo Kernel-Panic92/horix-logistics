@@ -663,27 +663,6 @@ function renderSeguridad(el) {
       <div class="stat-card"><div class="stat-label">IPs Bloqueadas</div><div class="stat-value" id="sec-bloqueadas" style="color:var(--danger);">—</div></div>
       <div class="stat-card"><div class="stat-label">IPs en Seguimiento</div><div class="stat-value" id="sec-seguimiento" style="color:var(--warning);">—</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-      <div class="card">
-        <h4 style="margin-bottom:16px;font-family:var(--font-head);">🔐 Cambiar Contraseña</h4>
-        <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Actualiza tu contraseña de acceso al sistema</p>
-        <button class="btn btn-secondary" onclick="abrirChpass()">Cambiar contraseña</button>
-      </div>
-      <div class="card">
-        <h4 style="margin-bottom:16px;font-family:var(--font-head);">🎨 Apariencia</h4>
-        <div class="form-group">
-          <label>Tema visual</label>
-          <select onchange="if(this.value==='light') document.body.classList.add('light'); else document.body.classList.remove('light'); localStorage.setItem('logistics_theme', this.value);" id="sel-tema">
-            <option value="dark">Oscuro</option>
-            <option value="light" ${document.body.classList.contains('light')?'selected':''}>Claro</option>
-          </select>
-        </div>
-        <div class="form-group mt-12">
-          <label>Versión del sistema</label>
-          <input type="text" id="cfg-version" value="${window._appVer||'v—'}" readonly style="opacity:.6;cursor:not-allowed;">
-        </div>
-      </div>
-    </div>
     <div class="card" style="margin-bottom:20px;max-width:600px;">
       <h4 style="margin-bottom:12px;font-family:var(--font-head);">🌐 URL Pública</h4>
       <p class="text-muted" style="font-size:13px;margin-bottom:10px;">Usada en los enlaces de recuperación de contraseña</p>
