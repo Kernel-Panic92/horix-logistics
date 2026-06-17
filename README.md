@@ -7,10 +7,11 @@ Sistema de optimización de rutas y logística para Vitamar S.A. Integrado con H
 - ✅ Importación de planillas SIESA (PDF)
 - ✅ Importación de datos de Widetech (Excel)
 - ✅ Optimización de rutas con OR-Tools + OSRM
-- ✅ Dashboard en tiempo real
-- ✅ Seguimiento de entregas
-- ✅ Reportes de eficiencia
-- ✅ API REST completa
+- ✅ Dashboard SPA (tema oscuro/claro, sidebar, responsive)
+- ✅ Autenticación JWT
+- ✅ API REST completa con rutas protegidas
+- ✅ Integración MCP (3 tools para Claude)
+- ✅ Instalador automatizado (`sudo ./install.sh`)
 - ✅ PM2 para producción
 
 ## 🏗️ Arquitectura
@@ -18,16 +19,28 @@ Sistema de optimización de rutas y logística para Vitamar S.A. Integrado con H
 ```
 Backend: Node.js + Express
 BD: PostgreSQL
-Motor VRP: OR-Tools + OSRM
-Frontend: React (próximamente)
+Motor VRP: OSRM + Nearest Neighbor + 2-opt
+Frontend: Vanilla JS SPA (estilo Horix/DocFlow)
 ```
 
 ## 📦 Instalación
 
+### Opción rápida (recomendada)
+
+```bash
+git clone https://github.com/Kernel-Panic92/horix-logistics.git
+cd horix-logistics
+sudo bash install.sh
+```
+
+El instalador guía paso a paso: puerto, conexión PostgreSQL, credenciales admin, y deja el servicio corriendo con PM2.
+
+### Opción manual
+
 ### 1. Clonar el repositorio
 
 ```bash
-git clone <repo-url> horix-logistics
+git clone https://github.com/Kernel-Panic92/horix-logistics.git
 cd horix-logistics
 ```
 
@@ -85,7 +98,7 @@ npm run dev
 
 #### Producción con PM2:
 ```bash
-pm2 start backend/server.js --name "logistics" --env production
+pm2 start ecosystem.config.js --env production
 pm2 save
 pm2 startup
 ```
@@ -167,27 +180,44 @@ curl http://localhost:3004/api/rutas?fecha=2024-06-16
 ### Health
 - `GET /api/health` - Estado del servidor
 
+### Auth
+- `POST /api/auth/login` - Iniciar sesión (email + password → JWT)
+- `GET /api/auth/verificar` - Verificar token vigente
+
 ## 🔧 Estructura de carpetas
 
 ```
 horix-logistics/
 ├── backend/
-│   ├── server.js
+│   ├── server.js               ← Express + JWT + static files + MCP
 │   ├── config/
-│   │   └── db.js
+│   │   └── db.js                ← Conexión PostgreSQL
 │   ├── routes/
-│   │   ├── vehiculos.js
-│   │   ├── pedidos.js
-│   │   ├── rutas.js
-│   │   └── importadores.js
+│   │   ├── auth.js              ← Login JWT
+│   │   ├── vehiculos.js         ← CRUD vehículos
+│   │   ├── pedidos.js           ← CRUD pedidos
+│   │   ├── rutas.js             ← Optimización + CRUD
+│   │   ├── importadores.js      ← SIESA + Widetech
+│   │   └── health.js            ← Health check
+│   ├── mcp/
+│   │   └── index.js             ← 3 herramientas MCP
 │   ├── utils/
-│   │   ├── siesaPdfParser.js
-│   │   ├── widgetechExcelParser.js
-│   │   └── vrp.js
-│   └── migrations/
-│       └── 001_create_tables.sql
+│   │   ├── vrp.js               ← Motor VRP (OSRM + NN + 2-opt)
+│   │   ├── siesaPdfParser.js    ← Parser PDF
+│   │   └── widgetechExcelParser.js ← Parser Excel
+│   ├── migrations/
+│   │   ├── 001_create_tables.sql
+│   │   ├── 002_create_users.sql
+│   │   └── run.js               ← Ejecutor de migraciones
+│   └── db/
+│       └── seed.js              ← Usuario admin inicial
+├── public/
+│   ├── index.html               ← SPA (CSS inlined, tema oscuro/claro)
+│   └── app.js                   ← Lógica frontend
+├── install.sh                   ← Instalador automatizado
 ├── .env.example
-├── docker-compose.yml
+├── docker-compose.yml           ← PostgreSQL + OSRM
+├── ecosystem.config.js          ← PM2
 ├── package.json
 └── README.md
 ```
@@ -229,11 +259,15 @@ Extrae automáticamente:
 - [x] CRUD de vehículos y pedidos
 - [x] API de rutas
 - [x] Motor VRP básico
+- [x] Frontend SPA (Dashboard, CRUDs, importación)
+- [x] Autenticación JWT
+- [x] MCP tools para Claude
+- [x] Instalador automatizado
 
 ### Fase 2
-- [ ] Frontend Dashboard (React)
 - [ ] Mapa interactivo (Mapbox)
 - [ ] Seguimiento en tiempo real
+- [ ] Reportes de eficiencia
 
 ### Fase 3
 - [ ] App móvil para conductores
@@ -242,9 +276,8 @@ Extrae automáticamente:
 
 ## 🔐 Seguridad
 
-- [ ] JWT authentication
+- [x] JWT authentication
 - [ ] Rate limiting
-- [ ] Validación de entrada
 - [ ] HTTPS en producción
 
 ## 📝 Logs
@@ -276,4 +309,4 @@ Para reportar problemas, contactar a: Edgar (Sistemas, Vitamar)
 ---
 
 **Versión:** 1.0.0  
-**Última actualización:** Junio 2024
+**Última actualización:** Junio 2026
