@@ -20,7 +20,9 @@
     "pdf-parse": "^1.1.1",
     "xlsx": "^0.18.5",
     "axios": "^1.6.2",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "adm-zip": "^0.5.10",
+    "nodemailer": "^6.9.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

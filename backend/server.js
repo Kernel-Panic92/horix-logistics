@@ -41,6 +41,9 @@ import rutasRoutes from './routes/rutas.js';
 import importadoresRoutes from './routes/importadores.js';
 import healthRoutes from './routes/health.js';
 import usuariosRoutes from './routes/usuarios.js';
+import configRoutes from './routes/configuracion.js';
+import backupRoutes from './routes/backup.js';
+import auditoriaRoutes from './routes/auditoria.js';
 
 // Rutas públicas
 app.use('/api/auth', authRoutes);
@@ -52,6 +55,9 @@ app.use('/api/pedidos', verificarToken, pedidosRoutes);
 app.use('/api/rutas', verificarToken, rutasRoutes);
 app.use('/api/importadores', verificarToken, importadoresRoutes);
 app.use('/api/usuarios', verificarToken, usuariosRoutes);
+app.use('/api/configuracion', verificarToken, configRoutes);
+app.use('/api/backup', verificarToken, backupRoutes);
+app.use('/api/auditoria', verificarToken, auditoriaRoutes);
 
 // Version endpoint
 app.get('/api/version', (req, res) => res.json({ version: '1.0.0', nombre: 'Horix Logistics' }));

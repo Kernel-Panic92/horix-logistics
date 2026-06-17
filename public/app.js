@@ -429,9 +429,244 @@ async function guardarUsuario(id) {
 }
 
 /* ── Configuración ── */
-async function cargarConfig() {
-  document.getElementById('sel-tema').value = document.body.classList.contains('light') ? 'light' : 'dark';
-  document.getElementById('cfg-version').value = '1.0.0';
+let cfgTab = 'smtp';
+
+async function rConfig() {
+  document.querySelectorAll('#cfg-tab-bar .btn').forEach(b => b.classList.toggle('active', b.dataset.cfg === cfgTab));
+  const el = document.getElementById('cfg-content');
+  try {
+    const data = await api('/configuracion');
+    const c = data.config || {};
+    if (cfgTab === 'smtp') renderSmtp(el, c);
+    else if (cfgTab === 'backup') renderBackup(el, c);
+    else if (cfgTab === 'seguridad') renderSeguridad(el, c);
+    else if (cfgTab === 'auditoria') renderAuditoria(el);
+  } catch { el.innerHTML = '<p class="text-muted">Error al cargar configuración</p>'; }
+}
+
+function cargarConfig() { rConfig(); }
+
+/* ── SMTP Tab ── */
+function renderSmtp(el, c) {
+  el.innerHTML = `
+    <div class="card" style="max-width:600px;">
+      <h4 style="margin-bottom:16px;font-family:var(--font-head);">📧 Configuración SMTP</h4>
+      <div class="form-grid">
+        <div class="form-group"><label>Host SMTP</label><input id="cfg-host" value="${esc(c.smtp_host||'')}" placeholder="smtp.gmail.com"></div>
+        <div class="form-group"><label>Puerto</label><input id="cfg-puerto" value="${c.smtp_puerto||'587'}" placeholder="587"></div>
+        <div class="form-group"><label>TLS</label><select id="cfg-tls"><option value="1" ${c.smtp_tls==='1'?'selected':''}>Sí</option><option value="0" ${c.smtp_tls==='0'?'selected':''}>No</option></select></div>
+        <div class="form-group"><label>Usuario</label><input id="cfg-usuario" value="${esc(c.smtp_usuario||'')}"></div>
+        <div class="form-group"><label>Contraseña</label><input type="password" id="cfg-password" value="${c.smtp_password?'••••••••':''}"></div>
+        <div class="form-group"><label>Remitente (From)</label><input id="cfg-remitente" value="${esc(c.smtp_remitente||'')}" placeholder="logistics@vitamar.com"></div>
+      </div>
+      <div class="flex" style="margin-top:8px;">
+        <button class="btn btn-primary" onclick="guardarSmtp()">✓ Guardar</button>
+        <button class="btn btn-secondary" onclick="testSmtp()">✉ Probar</button>
+      </div>
+      <div id="smtp-msg" style="margin-top:10px;"></div>
+    </div>`;
+}
+
+async function guardarSmtp() {
+  const msg = document.getElementById('smtp-msg');
+  try {
+    await api('/configuracion', { method: 'PUT', body: JSON.stringify({
+      smtp_host: document.getElementById('cfg-host').value.trim(),
+      smtp_puerto: document.getElementById('cfg-puerto').value.trim(),
+      smtp_tls: document.getElementById('cfg-tls').value,
+      smtp_usuario: document.getElementById('cfg-usuario').value.trim(),
+      smtp_password: document.getElementById('cfg-password').value,
+      smtp_remitente: document.getElementById('cfg-remitente').value.trim()
+    })});
+    msg.innerHTML = '<span style="color:var(--success)">✓ Configuración guardada</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function testSmtp() {
+  const msg = document.getElementById('smtp-msg');
+  msg.innerHTML = '<span class="text-muted">Enviando...</span>';
+  try {
+    const data = await api('/configuracion/test', { method: 'POST', body: JSON.stringify({
+      host: document.getElementById('cfg-host').value.trim(),
+      puerto: document.getElementById('cfg-puerto').value.trim(),
+      tls: document.getElementById('cfg-tls').value,
+      usuario: document.getElementById('cfg-usuario').value.trim(),
+      password: document.getElementById('cfg-password').value,
+      remitente: document.getElementById('cfg-remitente').value.trim()
+    })});
+    msg.innerHTML = '<span style="color:var(--success)">✓ ' + data.mensaje + '</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+/* ── Backup Tab ── */
+function renderBackup(el) {
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="card">
+        <h4 style="margin-bottom:12px;font-family:var(--font-head);">📦 Exportar Backup</h4>
+        <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Descarga un ZIP con todas las tablas del sistema</p>
+        <button class="btn btn-primary" onclick="descargarBackup()">💾 Descargar Backup</button>
+        <div id="backup-ok" style="display:none;margin-top:10px;color:var(--success);">✓ Backup generado</div>
+        <hr style="border-color:var(--border);margin:18px 0;">
+        <h4 style="margin-bottom:8px;font-family:var(--font-head);font-size:14px;">🤖 Último Backup Automático</h4>
+        <div id="ultimo-bk-info"><p class="text-muted">Cargando...</p></div>
+        <button class="btn btn-secondary btn-sm mt-12" onclick="ejecutarBackupScript()">▶ Ejecutar ahora</button>
+        <div id="bk-script-log" style="margin-top:8px;"></div>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:12px;font-family:var(--font-head);">♻️ Restaurar Backup</h4>
+        <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Selecciona un backup del servidor para restaurar</p>
+        <div id="lista-backups"><p class="text-muted">Cargando...</p></div>
+      </div>
+    </div>`;
+  cargarUltimoBackup();
+  cargarListaBackups();
+}
+
+async function descargarBackup() {
+  try {
+    const res = await fetch('/api/backup', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'logistics_backup_' + new Date().toISOString().slice(0,10) + '.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+    document.getElementById('backup-ok').style.display = 'block';
+  } catch (e) { alert(e.message); }
+}
+
+async function cargarUltimoBackup() {
+  const el = document.getElementById('ultimo-bk-info');
+  try {
+    const data = await api('/backup/ultimo');
+    if (data.ultimo) el.innerHTML = `<div style="font-size:13px;">📅 ${new Date(data.ultimo.fecha).toLocaleString()} · ${data.ultimo.exitoso ? '✅ Exitoso' : '❌ Fallido'}</div>`;
+    else el.innerHTML = '<p class="text-muted">Sin backups automáticos aún</p>';
+  } catch { el.innerHTML = '<p class="text-muted">—</p>'; }
+}
+
+async function cargarListaBackups() {
+  const el = document.getElementById('lista-backups');
+  try {
+    const data = await api('/backup/lista');
+    if (!data.backups?.length) { el.innerHTML = '<p class="text-muted">No hay backups en el servidor</p>'; return; }
+    el.innerHTML = data.backups.map(b => `
+      <div class="flex" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div><div style="font-weight:500;font-size:13px;">📦 ${b.nombre}</div><div style="font-size:11px;color:var(--muted);">${new Date(b.fecha).toLocaleDateString()} · ${b.tamaño}</div></div>
+        <div class="flex">
+          <button class="btn btn-sm btn-secondary" onclick="descargarBackupServidor('${b.nombre}')">⬇️</button>
+          <button class="btn btn-sm btn-secondary" onclick="restaurarBackupLocal('${b.nombre}')">♻️</button>
+        </div>
+      </div>
+    `).join('');
+  } catch { el.innerHTML = '<p class="text-muted">Error al cargar</p>'; }
+}
+
+async function descargarBackupServidor(nombre) {
+  try {
+    const res = await fetch('/api/backup/descargar/' + encodeURIComponent(nombre), { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { alert(e.message); }
+}
+
+async function restaurarBackupLocal(nombre) {
+  if (!confirm('¿Restaurar backup ' + nombre + '? Los datos actuales serán reemplazados.')) return;
+  try {
+    const data = await api('/backup/restore/local/' + encodeURIComponent(nombre), { method: 'POST' });
+    alert(data.mensaje || 'Restauración completada');
+  } catch (e) { alert(e.message); }
+}
+
+async function ejecutarBackupScript() {
+  const log = document.getElementById('bk-script-log');
+  log.innerHTML = '<span class="text-muted">Ejecutando...</span>';
+  try {
+    const data = await api('/backup/ejecutar', { method: 'POST' });
+    log.innerHTML = '<span style="color:' + (data.ok ? 'var(--success)' : 'var(--danger)') + '">' + (data.ok ? '✓ Completado' : '✗ Error') + '</span>';
+    cargarUltimoBackup();
+    cargarListaBackups();
+  } catch (e) { log.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+/* ── Seguridad Tab ── */
+function renderSeguridad(el) {
+  el.innerHTML = `
+    <div class="card" style="max-width:600px;">
+      <h4 style="margin-bottom:16px;font-family:var(--font-head);">🛡️ Seguridad</h4>
+      <div class="form-group">
+        <label>Tema visual</label>
+        <select onchange="if(this.value==='light') document.body.classList.add('light'); else document.body.classList.remove('light'); localStorage.setItem('logistics_theme', this.value);" id="sel-tema">
+          <option value="dark">Oscuro</option>
+          <option value="light" ${document.body.classList.contains('light')?'selected':''}>Claro</option>
+        </select>
+      </div>
+      <div class="form-group mt-12">
+        <label>Versión del sistema</label>
+        <input type="text" id="cfg-version" value="1.0.0" readonly style="opacity:.6;cursor:not-allowed;">
+      </div>
+    </div>`;
+}
+
+/* ── Auditoría Tab ── */
+function renderAuditoria(el) {
+  el.innerHTML = `
+    <div class="stats-row" style="grid-template-columns:repeat(3,1fr);">
+      <div class="stat-card"><div class="stat-label">Accesos hoy</div><div class="stat-value" id="aud-exitos-hoy">—</div></div>
+      <div class="stat-card"><div class="stat-label">Fallidos hoy</div><div class="stat-value" id="aud-fallidos-hoy" style="color:var(--danger)">—</div></div>
+      <div class="stat-card"><div class="stat-label">Accesos (7d)</div><div class="stat-value" id="aud-exitos-7d">—</div></div>
+    </div>
+    <div class="flex" style="margin-bottom:14px;flex-wrap:wrap;">
+      <input type="text" id="aud-buscar" placeholder="🔍 Buscar usuario/email..." style="width:200px;" oninput="cargarAuditoria()">
+      <select id="aud-fil-tipo" onchange="cargarAuditoria()" style="width:auto;">
+        <option value="">Todos</option><option value="exito">Exitoso</option><option value="fallido">Fallido</option>
+      </select>
+      <input type="date" id="aud-desde" onchange="cargarAuditoria()" style="width:auto;">
+      <input type="date" id="aud-hasta" onchange="cargarAuditoria()" style="width:auto;">
+      <button class="btn btn-sm btn-secondary" onclick="cargarAuditoria()">🔄</button>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl"><thead><tr><th>Usuario</th><th>Email</th><th>Tipo</th><th>IP</th><th>Fecha</th></tr></thead><tbody id="aud-body"></tbody></table>
+    </div>`;
+  cargarAuditoria();
+}
+
+async function cargarAuditoria() {
+  const params = new URLSearchParams();
+  const tipo = document.getElementById('aud-fil-tipo')?.value;
+  const buscar = document.getElementById('aud-buscar')?.value;
+  const desde = document.getElementById('aud-desde')?.value;
+  const hasta = document.getElementById('aud-hasta')?.value;
+  if (tipo) params.set('tipo', tipo);
+  if (buscar) params.set('buscar', buscar);
+  if (desde) params.set('desde', desde);
+  if (hasta) params.set('hasta', hasta);
+  try {
+    const data = await api('/auditoria?' + params.toString());
+    if (data.stats) {
+      document.getElementById('aud-exitos-hoy').textContent = data.stats.exitos_hoy || 0;
+      document.getElementById('aud-fallidos-hoy').textContent = data.stats.fallidos_hoy || 0;
+      document.getElementById('aud-exitos-7d').textContent = data.stats.exitos_7d || 0;
+    }
+    const tbody = document.getElementById('aud-body');
+    if (!data.historial?.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted" style="padding:24px;">Sin registros</td></tr>'; return; }
+    tbody.innerHTML = data.historial.map(h => `
+      <tr>
+        <td>${esc(h.nombre||'—')}</td>
+        <td>${esc(h.email||'—')}</td>
+        <td><span class="badge badge-${h.tipo==='exito'?'success':'danger'}">${h.tipo==='exito'?'✅ Exitoso':'❌ Fallido'}</span></td>
+        <td>${h.ip||'—'}</td>
+        <td>${new Date(h.timestamp).toLocaleString()}</td>
+      </tr>
+    `).join('');
+  } catch {}
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 init();

@@ -345,30 +345,13 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
           <h3>Configuración</h3>
           <p>Ajustes del sistema</p>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-          <div class="card">
-            <h4 style="margin-bottom:12px;font-family:var(--font-head);">🎨 Apariencia</h4>
-            <div class="form-group">
-              <label>Tema</label>
-              <select onchange="if(this.value==='light') document.body.classList.add('light'); else document.body.classList.remove('light'); localStorage.setItem('logistics_theme', this.value);" id="sel-tema">
-                <option value="dark">Oscuro</option>
-                <option value="light">Claro</option>
-              </select>
-            </div>
-          </div>
-          <div class="card">
-            <h4 style="margin-bottom:12px;font-family:var(--font-head);">🔗 Integración</h4>
-            <div class="form-group">
-              <label>URL del servidor OSRM</label>
-              <input type="text" id="cfg-osrm" placeholder="https://router.project-osrm.org" readonly style="opacity:.6;cursor:not-allowed;">
-              <div class="help">Configurado en .env (requiere reinicio)</div>
-            </div>
-            <div class="form-group mt-12">
-              <label>Versión del sistema</label>
-              <input type="text" id="cfg-version" readonly style="opacity:.6;cursor:not-allowed;">
-            </div>
-          </div>
+        <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;" id="cfg-tab-bar">
+          <button class="btn btn-sm btn-secondary active" data-cfg="smtp" onclick="cfgTab='smtp';rConfig()">📧 Correo</button>
+          <button class="btn btn-sm btn-secondary" data-cfg="backup" onclick="cfgTab='backup';rConfig()">💾 Backup</button>
+          <button class="btn btn-sm btn-secondary" data-cfg="seguridad" onclick="cfgTab='seguridad';rConfig()">🛡️ Seguridad</button>
+          <button class="btn btn-sm btn-secondary" data-cfg="auditoria" onclick="cfgTab='auditoria';rConfig()">📋 Auditoría</button>
         </div>
+        <div id="cfg-content">Cargando...</div>
       </div>
 
     </div>
