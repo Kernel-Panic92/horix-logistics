@@ -145,6 +145,7 @@ function mostrarApp() {
   document.getElementById('user-badge').textContent = USER.rol;
   cargarVersion();
   navigate('dashboard');
+  iniciarDropZones();
 }
 
 async function cargarVersion() {
@@ -386,22 +387,41 @@ async function generarRutas() {
 }
 
 /* ── Importadores ── */
+function iniciarDropZones() {
+  ['siesa', 'widetech'].forEach(t => {
+    const zone = document.getElementById('drop-' + t);
+    const input = document.getElementById('file-' + t);
+    if (!zone || !input) return;
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        input.files = e.dataTransfer.files;
+        const ev = new Event('change', { bubbles: true });
+        input.dispatchEvent(ev);
+      }
+    });
+  });
+}
+
 function previsualizarArchivo(input, nameId) {
   const el = document.getElementById(nameId);
   if (input.files?.length) {
     el.textContent = input.files[0].name;
     el.style.display = 'block';
-    // Habilitar botón
     const btnId = input.id === 'file-siesa' ? 'btn-import-siesa' : 'btn-import-widetech';
     document.getElementById(btnId).disabled = false;
+    document.getElementById('result-' + input.id.replace('file-', '')).innerHTML = '';
   }
 }
 
 async function importarSiesa() {
   const input = document.getElementById('file-siesa');
-  if (!input.files?.length) return;
-  const btn = document.getElementById('btn-import-siesa');
   const resEl = document.getElementById('result-siesa');
+  if (!input.files?.length) { resEl.innerHTML = '<div style="padding:10px;background:rgba(247,97,79,.1);border-radius:8px;color:var(--danger);font-size:13px;">❌ Selecciona un archivo PDF primero</div>'; return; }
+  const btn = document.getElementById('btn-import-siesa');
   btn.disabled = true; btn.textContent = 'Importando...';
   const fd = new FormData();
   fd.append('archivo', input.files[0]);
@@ -423,7 +443,8 @@ async function importarSiesa() {
 
 async function importarWidetech() {
   const input = document.getElementById('file-widetech');
-  if (!input.files?.length) return;
+  const resEl = document.getElementById('result-widetech');
+  if (!input.files?.length) { resEl.innerHTML = '<div style="padding:10px;background:rgba(247,97,79,.1);border-radius:8px;color:var(--danger);font-size:13px;">❌ Selecciona un archivo Excel primero</div>'; return; }
   const btn = document.getElementById('btn-import-widetech');
   const resEl = document.getElementById('result-widetech');
   btn.disabled = true; btn.textContent = 'Importando...';
