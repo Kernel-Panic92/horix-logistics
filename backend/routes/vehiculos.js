@@ -1,0 +1,66 @@
+import express from 'express';
+import pool from '../config/db.js';
+
+const router = express.Router();
+
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM logistics.vehiculos ORDER BY id');
+    res.json({ exitosa: true, total: result.rows.length, vehiculos: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM logistics.vehiculos WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Vehículo no encontrado' });
+    res.json({ exitosa: true, vehiculo: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/', async (req, res) => {
+  try {
+    const { placa, alias, capacidad_peso, capacidad_volumen, sede } = req.body;
+    const result = await pool.query(
+      `INSERT INTO logistics.vehiculos (placa, alias, capacidad_peso, capacidad_volumen, sede)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [placa, alias, capacidad_peso || 5000, capacidad_volumen || 20, sede]
+    );
+    res.status(201).json({ exitosa: true, vehiculo: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const { placa, alias, capacidad_peso, capacidad_volumen, sede, estado } = req.body;
+    const result = await pool.query(
+      `UPDATE logistics.vehiculos SET placa=COALESCE($1,placa), alias=COALESCE($2,alias),
+       capacidad_peso=COALESCE($3,capacidad_peso), capacidad_volumen=COALESCE($4,capacidad_volumen),
+       sede=COALESCE($5,sede), estado=COALESCE($6,estado), updated_at=CURRENT_TIMESTAMP
+       WHERE id=$7 RETURNING *`,
+      [placa, alias, capacidad_peso, capacidad_volumen, sede, estado, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Vehículo no encontrado' });
+    res.json({ exitosa: true, vehiculo: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM logistics.vehiculos WHERE id=$1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Vehículo no encontrado' });
+    res.json({ exitosa: true, mensaje: 'Vehículo eliminado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export default router;

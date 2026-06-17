@@ -1,0 +1,296 @@
+import axios from 'axios';
+
+/**
+ * OSRM Client - Calcula matrices de distancia/tiempo entre puntos
+ * Usa Open Source Routing Machine (OSRM)
+ */
+export class OSRMClient {
+  constructor(baseUrl = 'http://router.project-osrm.org') {
+    this.baseUrl = baseUrl;
+  }
+
+  /**
+   * Calcula matriz de distancias y tiempos entre múltiples puntos
+   * @param {Array} puntos [{lat, lng}, {lat, lng}, ...]
+   * @returns {Object} {distances: [[...], [...]], durations: [[...], [...]]}
+   */
+  async calcularMatriz(puntos) {
+    try {
+      if (puntos.length < 2) {
+        throw new Error('Se necesitan al menos 2 puntos');
+      }
+
+      // Formato OSRM: lng,lat;lng,lat;...
+      const coordenadas = puntos
+        .map(p => `${p.lng},${p.lat}`)
+        .join(';');
+
+      const url = `${this.baseUrl}/table/v1/driving/${coordenadas}`;
+
+      const response = await axios.get(url, {
+        params: {
+          annotations: 'distance,duration'
+        },
+        timeout: 30000
+      });
+
+      if (response.data.code === 'Ok') {
+        return {
+          distances: response.data.distances, // en metros
+          durations: response.data.durations, // en segundos
+          exitosa: true
+        };
+      } else {
+        return {
+          exitosa: false,
+          error: response.data.message || 'Error en OSRM'
+        };
+      }
+    } catch (err) {
+      console.error('Error en OSRM:', err.message);
+      return {
+        exitosa: false,
+        error: err.message
+      };
+    }
+  }
+
+  /**
+   * Calcula la ruta optimizada entre múltiples puntos
+   * @param {Array} puntos
+   * @returns {Object} {ruta: [índices en orden], distancia, duración}
+   */
+  async calcularRutaOptimizada(puntos) {
+    try {
+      const matriz = await this.calcularMatriz(puntos);
+      
+      if (!matriz.exitosa) {
+        throw new Error(matriz.error);
+      }
+
+      // Usar algoritmo simple: nearest neighbor + 2-opt
+      // Para un MVP, esto es suficiente
+      const ruta = this.nearestNeighbor(matriz.distances, 0);
+      
+      const distanciaTotal = this.calcularDistanciaRuta(ruta, matriz.distances);
+      const duracionTotal = this.calcularDuracionRuta(ruta, matriz.durations);
+
+      return {
+        exitosa: true,
+        ruta, // índices de puntos en orden
+        distancia: distanciaTotal / 1000, // convertir a km
+        duracion: Math.round(duracionTotal / 60) // convertir a minutos
+      };
+    } catch (err) {
+      console.error('Error calculando ruta optimizada:', err);
+      return {
+        exitosa: false,
+        error: err.message
+      };
+    }
+  }
+
+  /**
+   * Algoritmo Nearest Neighbor (greedy)
+   * Comienza en un punto y siempre va al más cercano no visitado
+   */
+  nearestNeighbor(matriz, inicio = 0) {
+    const n = matriz.length;
+    const visitados = new Array(n).fill(false);
+    const ruta = [inicio];
+    visitados[inicio] = true;
+
+    let actual = inicio;
+
+    for (let i = 1; i < n; i++) {
+      let masProximo = -1;
+      let distanciaMinima = Infinity;
+
+      for (let j = 0; j < n; j++) {
+        if (!visitados[j] && matriz[actual][j] < distanciaMinima) {
+          distanciaMinima = matriz[actual][j];
+          masProximo = j;
+        }
+      }
+
+      if (masProximo === -1) break;
+
+      ruta.push(masProximo);
+      visitados[masProximo] = true;
+      actual = masProximo;
+    }
+
+    return ruta;
+  }
+
+  /**
+   * 2-opt improvement: intercambiar pares de aristas para mejorar la ruta
+   */
+  optimizarCon2Opt(ruta, matriz) {
+    let mejora = true;
+    let distanciaActual = this.calcularDistanciaRuta(ruta, matriz);
+
+    while (mejora) {
+      mejora = false;
+
+      for (let i = 0; i < ruta.length - 1; i++) {
+        for (let j = i + 2; j < ruta.length; j++) {
+          const rutaNueva = [...ruta];
+
+          // Invertir segmento [i+1...j]
+          let left = i + 1;
+          let right = j;
+          while (left < right) {
+            [rutaNueva[left], rutaNueva[right]] = [rutaNueva[right], rutaNueva[left]];
+            left++;
+            right--;
+          }
+
+          const nuevaDistancia = this.calcularDistanciaRuta(rutaNueva, matriz);
+
+          if (nuevaDistancia < distanciaActual) {
+            ruta = rutaNueva;
+            distanciaActual = nuevaDistancia;
+            mejora = true;
+            break;
+          }
+        }
+        if (mejora) break;
+      }
+    }
+
+    return ruta;
+  }
+
+  calcularDistanciaRuta(ruta, matriz) {
+    let distancia = 0;
+    for (let i = 0; i < ruta.length - 1; i++) {
+      distancia += matriz[ruta[i]][ruta[i + 1]];
+    }
+    return distancia;
+  }
+
+  calcularDuracionRuta(ruta, matriz) {
+    let duracion = 0;
+    for (let i = 0; i < ruta.length - 1; i++) {
+      duracion += matriz[ruta[i]][ruta[i + 1]];
+    }
+    return duracion;
+  }
+}
+
+/**
+ * VRP Solver - Resuelve el problema de enrutamiento de vehículos
+ */
+export class VRPSolver {
+  constructor(osrmClient) {
+    this.osrm = osrmClient || new OSRMClient();
+  }
+
+  /**
+   * Optimiza rutas para múltiples vehículos
+   * @param {Array} pedidos [{lat, lng, id, ...}, ...]
+   * @param {Array} vehiculos [{id, lat, lng, capacidad}, ...]
+   * @returns {Object} {rutas: [{vehiculo, paradas: [{...}]}]}
+   */
+  async optimizarRutasMultiVehiculos(pedidos, vehiculos) {
+    try {
+      // Paso 1: Construir todos los puntos (depósito + pedidos)
+      const todosLosPuntos = vehiculos.map(v => ({
+        tipo: 'deposito',
+        vehiculoId: v.id,
+        lat: v.lat,
+        lng: v.lng,
+        index: -1
+      }));
+
+      pedidos.forEach((p, idx) => {
+        todosLosPuntos.push({
+          tipo: 'pedido',
+          id: p.id,
+          lat: p.lat,
+          lng: p.lng,
+          index: idx
+        });
+      });
+
+      // Paso 2: Calcular matriz de distancias para todos los puntos
+      const puntos = todosLosPuntos.map(p => ({ lat: p.lat, lng: p.lng }));
+      const matriz = await this.osrm.calcularMatriz(puntos);
+
+      if (!matriz.exitosa) {
+        throw new Error(matriz.error);
+      }
+
+      // Paso 3: Asignar pedidos a vehículos (simple: round-robin)
+      const rutasPorVehiculo = {};
+      vehiculos.forEach(v => {
+        rutasPorVehiculo[v.id] = [];
+      });
+
+      let vehiculoIdx = 0;
+      for (const pedido of pedidos) {
+        const vehiculo = vehiculos[vehiculoIdx % vehiculos.length];
+        rutasPorVehiculo[vehiculo.id].push(pedido);
+        vehiculoIdx++;
+      }
+
+      // Paso 4: Optimizar cada ruta individual
+      const rutas = [];
+
+      for (const vehiculo of vehiculos) {
+        const pedidosVehiculo = rutasPorVehiculo[vehiculo.id];
+
+        if (pedidosVehiculo.length === 0) continue;
+
+        const puntosRuta = [
+          { lat: vehiculo.lat, lng: vehiculo.lng }, // Depósito
+          ...pedidosVehiculo.map(p => ({ lat: p.lat, lng: p.lng }))
+        ];
+
+        // Calcular ruta optimizada
+        const rutaOptimizada = await this.osrm.calcularRutaOptimizada(puntosRuta);
+
+        if (rutaOptimizada.exitosa) {
+          // Convertir índices a pedidos
+          const paradas = rutaOptimizada.ruta
+            .slice(1) // Omitir depósito
+            .map(idx => {
+              if (idx === 0) return null; // Depósito
+              return pedidosVehiculo[idx - 1];
+            })
+            .filter(p => p !== null);
+
+          rutas.push({
+            vehiculoId: vehiculo.id,
+            distancia: rutaOptimizada.distancia,
+            duracion: rutaOptimizada.duracion,
+            paradas,
+            secuencia: rutaOptimizada.ruta
+          });
+        }
+      }
+
+      return {
+        exitosa: true,
+        rutas
+      };
+    } catch (err) {
+      console.error('Error optimizando rutas:', err);
+      return {
+        exitosa: false,
+        error: err.message
+      };
+    }
+  }
+}
+
+/**
+ * Export para uso simple
+ */
+export async function generarRutasOptimizadas(pedidos, vehiculos, osrmUrl) {
+  const osrm = new OSRMClient(osrmUrl);
+  const solver = new VRPSolver(osrm);
+
+  return await solver.optimizarRutasMultiVehiculos(pedidos, vehiculos);
+}
