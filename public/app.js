@@ -36,7 +36,54 @@ async function login() {
   }
 }
 
-async function logout() {
+/* ── Forgot / Reset Password ── */
+function abrirForgot() {
+  document.getElementById('forgot-error').style.display = 'none';
+  document.getElementById('forgot-success').style.display = 'none';
+  document.getElementById('forgot-form').style.display = 'block';
+  document.getElementById('forgot-email').value = '';
+  document.getElementById('modal-forgot').classList.add('show');
+}
+
+function cerrarForgot() {
+  document.getElementById('modal-forgot').classList.remove('show');
+}
+
+async function enviarReset() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const errEl = document.getElementById('forgot-error');
+  const btn = document.getElementById('btn-forgot');
+  if (!email) { errEl.textContent = 'Ingresa tu correo electrónico'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    await api('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+    document.getElementById('forgot-form').style.display = 'none';
+    document.getElementById('forgot-success').style.display = 'block';
+    document.getElementById('forgot-success').textContent = '✅ Si el correo existe en el sistema, recibirás un enlace para restablecer tu contraseña.';
+    setTimeout(() => cerrarForgot(), 4000);
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Enviar Enlace';
+  }
+}
+
+/* ── Logout ── */
+function mostrarLogoutConfirm() {
+  document.getElementById('modal-logout').classList.add('show');
+}
+
+function cerrarLogoutConfirm() {
+  document.getElementById('modal-logout').classList.remove('show');
+}
+
+document.getElementById('modal-logout')?.addEventListener('click', function(e) {
+  if (e.target === this) cerrarLogoutConfirm();
+});
+
+function confirmarLogout() {
+  cerrarLogoutConfirm();
   TOKEN = null; USER = null;
   localStorage.removeItem('logistics_token');
   document.getElementById('app-screen').style.display = 'none';
@@ -93,7 +140,16 @@ function mostrarApp() {
   document.getElementById('user-name').textContent = USER.nombre;
   document.getElementById('user-role').textContent = USER.email;
   document.getElementById('user-badge').textContent = USER.rol;
+  cargarVersion();
   navigate('dashboard');
+}
+
+async function cargarVersion() {
+  try {
+    const data = await api('/version');
+    const el = document.getElementById('app-version');
+    if (el && data.version) el.textContent = 'v' + data.version + (data.branch ? ' [' + data.branch + ']' : '');
+  } catch {}
 }
 
 /* ── Modal helpers ── */
@@ -109,6 +165,9 @@ function cerrarModal() {
 }
 document.getElementById('modal-overlay').addEventListener('click', function(e) {
   if (e.target === this) cerrarModal();
+});
+document.getElementById('modal-forgot')?.addEventListener('click', function(e) {
+  if (e.target === this) cerrarForgot();
 });
 
 /* ── File helpers ── */

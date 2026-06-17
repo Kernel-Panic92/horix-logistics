@@ -107,6 +107,10 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 .modal .modal-desc{color:var(--muted);font-size:14px;margin-bottom:20px}
 .modal .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
 
+/* ── Logout button ── */
+.btn-logout{width:100%;padding:10px;background:rgba(247,97,79,.08);border:1px solid rgba(247,97,79,.2);border-radius:9px;color:var(--danger);font-family:inherit;font-weight:600;font-size:13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;justify-content:center}
+.btn-logout:hover{background:rgba(247,97,79,.15);border-color:var(--danger)}
+
 /* ── Status badges ── */
 .badge{padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;display:inline-block}
 .badge-success{background:rgba(79,190,150,.15);color:var(--success)}
@@ -173,13 +177,42 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
     <div class="error" id="login-error"></div>
     <div class="form-group">
       <label>Correo electrónico</label>
-      <input type="email" id="login-email" placeholder="admin@vitamar.com" autocomplete="email">
+      <input type="email" id="login-email" placeholder="admin@vitamar.com" autocomplete="email" onkeydown="if(event.key==='Enter')login()">
     </div>
     <div class="form-group">
       <label>Contraseña</label>
-      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password">
+      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
     </div>
     <button class="btn btn-primary" onclick="login()" style="width:100%;justify-content:center;" id="login-btn">Ingresar</button>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="#" onclick="abrirForgot()" style="font-size:13px;color:var(--muted);text-decoration:none;"
+         onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
+        ¿Olvidaste tu contraseña?
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Forgot Password Modal -->
+<div class="modal-overlay" id="modal-forgot">
+  <div class="modal" style="width:420px;">
+    <div class="modal-title" style="font-family:var(--font-head);font-size:18px;margin-bottom:4px;">Recuperar Contraseña</div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:20px;">
+      Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
+    </p>
+    <div style="color:var(--danger);font-size:13px;display:none;margin-bottom:12px;" id="forgot-error"></div>
+    <div id="forgot-success" style="display:none;padding:12px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;margin-bottom:16px;"></div>
+    <div id="forgot-form">
+      <div class="form-group" style="margin-bottom:20px;">
+        <label>Correo Electrónico</label>
+        <input type="email" id="forgot-email" placeholder="correo@empresa.com"
+               onkeydown="if(event.key==='Enter')enviarReset()"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border);">
+      <button class="btn btn-secondary" onclick="cerrarForgot()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-forgot" data-txt="Enviar Enlace" onclick="enviarReset()">Enviar Enlace</button>
+    </div>
   </div>
 </div>
 
@@ -209,12 +242,23 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
       <div class="nav-item" data-page="importar" onclick="navigate('importar')">
         <span class="icon">📥</span> Importar
       </div>
-    </nav>
-    <div class="sidebar-footer">
       <div class="nav-item" data-page="usuarios" onclick="navigate('usuarios')">
         <span class="icon">👥</span> Usuarios
       </div>
-      <div class="nav-item" onclick="logout()"><span class="icon">🚪</span> Cerrar sesión</div>
+      <div class="nav-item" data-page="config" onclick="navigate('config')">
+        <span class="icon">⚙️</span> Configuración
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesión">
+        <span class="nav-icon" style="font-size:18px;">⏻</span> Cerrar sesión
+      </button>
+      <div style="margin-top:10px;text-align:center;font-size:10px;color:var(--muted);line-height:1.6;opacity:0.7;">
+        <div id="app-version">v—</div>
+        <div>© 2026 Edgar Velasquez</div>
+        <div><a href="https://github.com/Kernel-Panic92/horix-logistics" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">github.com/Kernel-Panic92/horix-logistics</a></div>
+        <div>Todos los derechos reservados</div>
+      </div>
     </div>
   </aside>
   <div class="main">
@@ -354,6 +398,19 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
         <div id="cfg-content">Cargando...</div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- Logout Confirmation Modal -->
+<div class="modal-overlay" id="modal-logout">
+  <div class="modal" style="max-width:380px;text-align:center;">
+    <div style="font-size:44px;margin-bottom:8px">👋</div>
+    <div class="modal-title" style="font-family:var(--font-head);font-size:20px;">Cerrar sesión</div>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:8px">¿Estás seguro de que deseas cerrar tu sesión?</p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+      <button class="btn btn-secondary" onclick="cerrarLogoutConfirm()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarLogout()">Cerrar sesión</button>
     </div>
   </div>
 </div>

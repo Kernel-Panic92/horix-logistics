@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
@@ -60,7 +61,14 @@ app.use('/api/backup', verificarToken, backupRoutes);
 app.use('/api/auditoria', verificarToken, auditoriaRoutes);
 
 // Version endpoint
-app.get('/api/version', (req, res) => res.json({ version: '1.0.0', nombre: 'Horix Logistics' }));
+app.get('/api/version', (req, res) => {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    res.json({ version: pkg.version || '1.0.0', nombre: pkg.name, branch: 'main' });
+  } catch {
+    res.json({ version: '1.0.0', nombre: 'Horix Logistics', branch: 'main' });
+  }
+});
 
 // MCP endpoint
 import { createMiddleware } from './mcp/index.js';
