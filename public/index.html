@@ -402,6 +402,38 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
   </div>
 </div>
 
+<!-- Password Change Modal -->
+<div class="modal-overlay" id="modal-chpass">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title" style="font-family:var(--font-head);font-size:18px;margin-bottom:4px;">Cambiar Contraseña</div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:20px;">Ingresa tu contraseña actual y la nueva</p>
+    <div style="color:var(--danger);font-size:13px;display:none;margin-bottom:12px;" id="chpass-error"></div>
+    <div class="form-group">
+      <label>Contraseña actual</label>
+      <input type="password" id="chpass-actual" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="form-group">
+      <label>Nueva contraseña</label>
+      <input type="password" id="chpass-nueva" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>Confirmar nueva contraseña</label>
+      <input type="password" id="chpass-confirm" placeholder="••••••••" autocomplete="new-password">
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+      <div id="chpreq-len">• 8+ caracteres</div>
+      <div id="chpreq-up">• Una mayúscula</div>
+      <div id="chpreq-num">• Un número</div>
+      <div id="chpreq-sym">• Un carácter especial</div>
+    </div>
+    <div id="chpass-msg" style="font-size:13px;margin-top:12px;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+      <button class="btn btn-secondary" onclick="cerrarChpass()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-chpass" onclick="doChangePass()">Cambiar contraseña</button>
+    </div>
+  </div>
+</div>
+
 <!-- Logout Confirmation Modal -->
 <div class="modal-overlay" id="modal-logout">
   <div class="modal" style="max-width:380px;text-align:center;">

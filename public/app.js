@@ -147,9 +147,12 @@ function mostrarApp() {
 async function cargarVersion() {
   try {
     const data = await api('/version');
+    window._appVer = 'v' + data.version + (data.branch ? ' [' + data.branch + ']' : '');
     const el = document.getElementById('app-version');
-    if (el && data.version) el.textContent = 'v' + data.version + (data.branch ? ' [' + data.branch + ']' : '');
-  } catch {}
+    if (el) el.textContent = window._appVer;
+    const verInput = document.getElementById('cfg-version');
+    if (verInput) verInput.value = window._appVer;
+  } catch { window._appVer = 'v—'; }
 }
 
 /* ── Modal helpers ── */
@@ -651,22 +654,222 @@ async function ejecutarBackupScript() {
 }
 
 /* ── Seguridad Tab ── */
+let secInterval = null;
+
 function renderSeguridad(el) {
+  if (secInterval) clearInterval(secInterval);
   el.innerHTML = `
-    <div class="card" style="max-width:600px;">
-      <h4 style="margin-bottom:16px;font-family:var(--font-head);">🛡️ Seguridad</h4>
-      <div class="form-group">
-        <label>Tema visual</label>
-        <select onchange="if(this.value==='light') document.body.classList.add('light'); else document.body.classList.remove('light'); localStorage.setItem('logistics_theme', this.value);" id="sel-tema">
-          <option value="dark">Oscuro</option>
-          <option value="light" ${document.body.classList.contains('light')?'selected':''}>Claro</option>
-        </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+      <div class="stat-card"><div class="stat-label">IPs Bloqueadas</div><div class="stat-value" id="sec-bloqueadas" style="color:var(--danger);">—</div></div>
+      <div class="stat-card"><div class="stat-label">IPs en Seguimiento</div><div class="stat-value" id="sec-seguimiento" style="color:var(--warning);">—</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+      <div class="card">
+        <h4 style="margin-bottom:16px;font-family:var(--font-head);">🔐 Cambiar Contraseña</h4>
+        <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Actualiza tu contraseña de acceso al sistema</p>
+        <button class="btn btn-secondary" onclick="abrirChpass()">Cambiar contraseña</button>
       </div>
-      <div class="form-group mt-12">
-        <label>Versión del sistema</label>
-        <input type="text" id="cfg-version" value="1.0.0" readonly style="opacity:.6;cursor:not-allowed;">
+      <div class="card">
+        <h4 style="margin-bottom:16px;font-family:var(--font-head);">🎨 Apariencia</h4>
+        <div class="form-group">
+          <label>Tema visual</label>
+          <select onchange="if(this.value==='light') document.body.classList.add('light'); else document.body.classList.remove('light'); localStorage.setItem('logistics_theme', this.value);" id="sel-tema">
+            <option value="dark">Oscuro</option>
+            <option value="light" ${document.body.classList.contains('light')?'selected':''}>Claro</option>
+          </select>
+        </div>
+        <div class="form-group mt-12">
+          <label>Versión del sistema</label>
+          <input type="text" id="cfg-version" value="${window._appVer||'v—'}" readonly style="opacity:.6;cursor:not-allowed;">
+        </div>
       </div>
+    </div>
+    <div class="card" style="margin-bottom:20px;max-width:600px;">
+      <h4 style="margin-bottom:12px;font-family:var(--font-head);">🌐 URL Pública</h4>
+      <p class="text-muted" style="font-size:13px;margin-bottom:10px;">Usada en los enlaces de recuperación de contraseña</p>
+      <div class="flex">
+        <input type="text" id="cfg-app-url" value="" placeholder="https://logistica.midominio.com" style="flex:1;">
+        <button class="btn btn-primary btn-sm" onclick="guardarAppUrl()">Guardar</button>
+      </div>
+      <div id="appurl-msg" style="margin-top:6px;font-size:12px;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+      <div class="card">
+        <h4 style="margin-bottom:16px;font-family:var(--font-head);">⚙️ Configuración Rate Limiter</h4>
+        <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Límites de intentos de inicio de sesión</p>
+        <div id="sec-rate-config">Cargando...</div>
+        <button class="btn btn-primary btn-sm mt-12" onclick="guardarSecCfg()">💾 Guardar</button>
+        <div id="sec-cfg-msg" style="margin-top:8px;"></div>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:16px;font-family:var(--font-head);">🚫 Protección Fail2ban</h4>
+        <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Servicio de protección a nivel de servidor</p>
+        <div id="sec-fail2ban">Cargando...</div>
+      </div>
+    </div>
+    <div class="card" id="sec-bloqueos-card">
+      <h4 style="margin-bottom:12px;font-family:var(--font-head);">IPs Bloqueadas</h4>
+      <div id="sec-bloqueos-list"><p class="text-muted">Cargando...</p></div>
+    </div>
+    <div class="card mt-12" id="sec-seguimiento-card">
+      <h4 style="margin-bottom:12px;font-family:var(--font-head);">IPs en Seguimiento</h4>
+      <div id="sec-seguimiento-list"><p class="text-muted">Cargando...</p></div>
     </div>`;
+  cargarSecCfg();
+  cargarSecStatus();
+  secInterval = setInterval(cargarSecStatus, 10000);
+}
+
+async function cargarSecCfg() {
+  try {
+    const data = await api('/configuracion/seguridad');
+    const c = data.config || {};
+    const urlEl = document.getElementById('cfg-app-url');
+    if (urlEl && c.app_url) urlEl.value = c.app_url;
+    const el = document.getElementById('sec-rate-config');
+    if (!el) return;
+    el.innerHTML = `
+      <div class="form-group"><label>Intentos máximos</label><input type="number" id="sec-login-max" value="${c.login_max_attempts||5}" min="1" max="100"></div>
+      <div class="form-group"><label>Ventana (minutos)</label><input type="number" id="sec-login-window" value="${c.login_window_minutes||5}" min="1" max="1440"></div>
+      <div class="form-group"><label>Bloqueo (minutos)</label><input type="number" id="sec-login-block" value="${c.login_block_minutes||30}" min="1" max="1440"></div>
+    `;
+    const f2 = document.getElementById('sec-fail2ban');
+    if (data.fail2ban) {
+      f2.innerHTML = `<div style="font-size:13px;">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;"><span class="text-muted">Instalado</span><strong>${data.fail2ban.installed ? '✅ Sí' : '❌ No'}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);"><span class="text-muted">Activo</span><strong>${data.fail2ban.active ? '✅ Sí' : '❌ No'}</strong></div>
+        ${data.fail2ban.installed ? `<div class="flex" style="margin-top:10px;">
+          <button class="btn btn-sm btn-secondary" onclick="f2bAction('start')">▶ Iniciar</button>
+          <button class="btn btn-sm btn-secondary" onclick="f2bAction('stop')">⏹ Detener</button>
+          <button class="btn btn-sm btn-secondary" onclick="f2bAction('restart')">↻ Reiniciar</button>
+        </div><div id="f2b-msg" style="margin-top:6px;font-size:12px;"></div>` : ''}
+      </div>`;
+    }
+  } catch {}
+}
+
+async function guardarSecCfg() {
+  const msg = document.getElementById('sec-cfg-msg');
+  try {
+    await api('/configuracion/seguridad', { method: 'PUT', body: JSON.stringify({
+      login_max_attempts: document.getElementById('sec-login-max')?.value,
+      login_window_minutes: document.getElementById('sec-login-window')?.value,
+      login_block_minutes: document.getElementById('sec-login-block')?.value
+    })});
+    msg.innerHTML = '<span style="color:var(--success)">✓ Guardado</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function guardarAppUrl() {
+  const msg = document.getElementById('appurl-msg');
+  const val = document.getElementById('cfg-app-url')?.value?.trim();
+  try {
+    await api('/configuracion/seguridad', { method: 'PUT', body: JSON.stringify({ app_url: val || '' }) });
+    msg.innerHTML = '<span style="color:var(--success)">✓ URL guardada</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function f2bAction(action) {
+  const msg = document.getElementById('f2b-msg');
+  if (!msg) return;
+  msg.innerHTML = '<span class="text-muted">Ejecutando ' + action + '...</span>';
+  try {
+    const data = await api('/configuracion/fail2ban/' + action, { method: 'POST' });
+    msg.innerHTML = '<span style="color:var(--success)">✓ ' + data.mensaje + '</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function cargarSecStatus() {
+  try {
+    const data = await api('/auth/ratelimit-status');
+    const bEl = document.getElementById('sec-bloqueadas');
+    const sEl = document.getElementById('sec-seguimiento');
+    if (bEl) bEl.textContent = data.totalBloqueadas || 0;
+    if (sEl) sEl.textContent = data.totalIpsEnSeguimiento || 0;
+
+    const bList = document.getElementById('sec-bloqueos-list');
+    if (bList) {
+      if (!data.bloqueadas?.length) { bList.innerHTML = '<p class="text-muted">Sin IPs bloqueadas</p>'; }
+      else {
+        bList.innerHTML = data.bloqueadas.map(b => `
+          <div class="flex" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+            <div><span style="font-weight:500;">${b.ip}</span><span style="font-size:11px;color:var(--muted);margin-left:8px;">${b.intentos} intentos · ${b.minutosRestantes} min rest.</span></div>
+            <button class="btn btn-sm btn-secondary" onclick="desbloquearIP('${b.ip}')">Desbloquear</button>
+          </div>
+        `).join('');
+      }
+    }
+
+    const sList = document.getElementById('sec-seguimiento-list');
+    if (sList) {
+      if (!data.enSeguimiento?.length) { sList.innerHTML = '<p class="text-muted">Sin IPs en seguimiento</p>'; }
+      else {
+        sList.innerHTML = data.enSeguimiento.map(s => `
+          <div class="flex" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+            <div><span style="font-weight:500;">${s.ip}</span><span style="font-size:11px;color:var(--muted);margin-left:8px;">${s.intentos}/${data.configuracion?.maxIntentos||5} intentos · ventana ${s.ventanaExpiraEn}</span></div>
+            <progress max="${data.configuracion?.maxIntentos||5}" value="${s.intentos}" style="width:80px;height:6px;border-radius:3px;accent-color:var(--warning);"></progress>
+          </div>
+        `).join('');
+      }
+    }
+  } catch {}
+}
+
+async function desbloquearIP(ip) {
+  try {
+    await api('/auth/ratelimit-status/' + encodeURIComponent(ip), { method: 'DELETE' });
+    cargarSecStatus();
+  } catch (e) { alert(e.message); }
+}
+
+/* ── Password Change ── */
+function abrirChpass() {
+  document.getElementById('chpass-error').style.display = 'none';
+  document.getElementById('chpass-msg').innerHTML = '';
+  document.getElementById('chpass-actual').value = '';
+  document.getElementById('chpass-nueva').value = '';
+  document.getElementById('chpass-confirm').value = '';
+  ['chpreq-len','chpreq-up','chpreq-num','chpreq-sym'].forEach(id => document.getElementById(id).style.color = 'var(--muted)');
+  document.getElementById('modal-chpass').classList.add('show');
+  document.getElementById('chpass-nueva').addEventListener('input', validarChpassReqs);
+}
+
+function cerrarChpass() {
+  document.getElementById('modal-chpass').classList.remove('show');
+  document.getElementById('chpass-nueva').removeEventListener('input', validarChpassReqs);
+}
+
+document.getElementById('modal-chpass')?.addEventListener('click', function(e) {
+  if (e.target === this) cerrarChpass();
+});
+
+function validarChpassReqs() {
+  const p = document.getElementById('chpass-nueva').value;
+  const toggle = (id, ok) => document.getElementById(id).style.color = ok ? 'var(--success)' : 'var(--muted)';
+  toggle('chpreq-len', p.length >= 8);
+  toggle('chpreq-up', /[A-Z]/.test(p));
+  toggle('chpreq-num', /[0-9]/.test(p));
+  toggle('chpreq-sym', /[!@#$%^&*(),.?":{}|<>_\-+=\\\/[\]~`]/.test(p));
+}
+
+async function doChangePass() {
+  const actual = document.getElementById('chpass-actual').value;
+  const nueva = document.getElementById('chpass-nueva').value;
+  const confirm = document.getElementById('chpass-confirm').value;
+  const errEl = document.getElementById('chpass-error');
+  const msgEl = document.getElementById('chpass-msg');
+  errEl.style.display = 'none'; msgEl.innerHTML = '';
+  if (!actual || !nueva) { errEl.textContent = 'Completa todos los campos'; errEl.style.display = 'block'; return; }
+  if (nueva.length < 8) { errEl.textContent = 'La nueva contraseña debe tener al menos 8 caracteres'; errEl.style.display = 'block'; return; }
+  if (nueva !== confirm) { errEl.textContent = 'Las contraseñas no coinciden'; errEl.style.display = 'block'; return; }
+  try {
+    await api('/auth/cambiar-password', { method: 'POST', body: JSON.stringify({ actual, nueva }) });
+    msgEl.innerHTML = '<span style="color:var(--success)">✓ Contraseña actualizada correctamente</span>';
+    document.getElementById('chpass-actual').value = '';
+    document.getElementById('chpass-nueva').value = '';
+    document.getElementById('chpass-confirm').value = '';
+    setTimeout(cerrarChpass, 1500);
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
 }
 
 /* ── Auditoría Tab ── */

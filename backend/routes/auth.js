@@ -8,7 +8,45 @@ import { enviarCorreo } from '../utils/email.js';
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'logistics-dev-secret-change-in-production';
 
-router.post('/login', async (req, res) => {
+/* ── Rate limiter (login brute force) ── */
+const loginAttempts = new Map();
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 5 * 60 * 1000;
+const LOGIN_BLOCK_MS = 30 * 60 * 1000;
+
+function loginRateLimit(req, res, next) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '—';
+  const now = Date.now();
+  const data = loginAttempts.get(ip);
+  if (data?.blockedUntil && data.blockedUntil > now) {
+    const remaining = Math.ceil((data.blockedUntil - now) / 1000 / 60);
+    return res.status(429).json({ error: `Demasiados intentos. Intenta de nuevo en ${remaining} minuto(s).` });
+  }
+  if (data && now - data.windowStart > LOGIN_WINDOW_MS) {
+    loginAttempts.delete(ip);
+  }
+  next();
+}
+
+function loginRegisterFail(ip) {
+  const now = Date.now();
+  let data = loginAttempts.get(ip);
+  if (!data || now - data.windowStart > LOGIN_WINDOW_MS) {
+    data = { count: 0, windowStart: now };
+  }
+  data.count++;
+  if (data.count >= LOGIN_MAX_ATTEMPTS) {
+    data.blockedUntil = now + LOGIN_BLOCK_MS;
+  }
+  loginAttempts.set(ip, data);
+}
+
+function loginRegisterSuccess(ip) {
+  loginAttempts.delete(ip);
+}
+
+/* ── Login ── */
+router.post('/login', loginRateLimit, async (req, res) => {
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '—';
   const ua = req.headers['user-agent'] || '—';
   try {
@@ -18,6 +56,7 @@ router.post('/login', async (req, res) => {
     const result = await pool.query('SELECT * FROM logistics.usuarios WHERE email=$1 AND activo=true', [email]);
 
     if (result.rows.length === 0) {
+      loginRegisterFail(ip);
       await pool.query('INSERT INTO logistics.auditoria_accesos (email, ip, user_agent, tipo) VALUES ($1,$2,$3,\'fallido\')', [email, ip, ua]);
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
@@ -25,10 +64,12 @@ router.post('/login', async (req, res) => {
     const user = result.rows[0];
     const valida = await bcrypt.compare(password, user.password_hash);
     if (!valida) {
+      loginRegisterFail(ip);
       await pool.query('INSERT INTO logistics.auditoria_accesos (usuario_id, email, ip, user_agent, tipo) VALUES ($1,$2,$3,$4,\'fallido\')', [user.id, email, ip, ua]);
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
+    loginRegisterSuccess(ip);
     await pool.query('INSERT INTO logistics.auditoria_accesos (usuario_id, email, ip, user_agent, tipo) VALUES ($1,$2,$3,$4,\'exito\')', [user.id, email, ip, ua]);
 
     const token = jwt.sign(
@@ -63,6 +104,35 @@ router.get('/verificar', async (req, res) => {
   }
 });
 
+/* ── Cambiar contraseña (autenticado) ── */
+router.post('/cambiar-password', async (req, res) => {
+  try {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+    let decoded;
+    try { decoded = jwt.verify(auth.split(' ')[1], JWT_SECRET); } catch { return res.status(401).json({ error: 'Token inválido' }); }
+
+    const { actual, nueva } = req.body;
+    if (!actual || !nueva) return res.status(400).json({ error: 'Contraseña actual y nueva requeridas' });
+    if (nueva.length < 8) return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' });
+
+    const result = await pool.query('SELECT password_hash FROM logistics.usuarios WHERE id=$1', [decoded.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const ok = await bcrypt.compare(actual, result.rows[0].password_hash);
+    if (!ok) return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+
+    const hash = await bcrypt.hash(nueva, 12);
+    await pool.query('UPDATE logistics.usuarios SET password_hash=$1 WHERE id=$2', [hash, decoded.id]);
+
+    res.json({ ok: true, mensaje: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    console.error('Error en cambiar-password:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+/* ── Forgot / Reset ── */
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email requerido' });
@@ -114,6 +184,57 @@ router.post('/reset-password', async (req, res) => {
     console.error('Error en reset-password:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
+});
+
+/* ── Rate limiter status (admin) ── */
+router.get('/ratelimit-status', async (req, res) => {
+  try {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+    let decoded;
+    try { decoded = jwt.verify(auth.split(' ')[1], JWT_SECRET); } catch { return res.status(401).json({ error: 'Token inválido' }); }
+    if (decoded.rol !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
+
+    const cfgResult = await pool.query("SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('login_max_attempts','login_window_minutes','login_block_minutes')");
+    const cfg = {};
+    for (const row of cfgResult.rows) cfg[row.clave] = row.valor;
+
+    const now = Date.now();
+    const bloqueadas = [];
+    const enSeguimiento = [];
+    for (const [ip, data] of loginAttempts) {
+      if (data.blockedUntil && data.blockedUntil > now) {
+        bloqueadas.push({ ip, intentos: data.count, bloqueadaHasta: new Date(data.blockedUntil).toISOString(), minutosRestantes: Math.round((data.blockedUntil - now) / 60000) });
+      } else if (now - data.windowStart <= LOGIN_WINDOW_MS) {
+        enSeguimiento.push({ ip, intentos: data.count, ventanaExpiraEn: Math.round((LOGIN_WINDOW_MS - (now - data.windowStart)) / 1000) + 's' });
+      }
+    }
+
+    res.json({
+      configuracion: {
+        maxIntentos: parseInt(cfg.login_max_attempts) || LOGIN_MAX_ATTEMPTS,
+        ventanaMinutos: parseInt(cfg.login_window_minutes) || LOGIN_WINDOW_MS / 60000,
+        bloqueoMinutos: parseInt(cfg.login_block_minutes) || LOGIN_BLOCK_MS / 60000
+      },
+      totalIpsEnSeguimiento: enSeguimiento.length,
+      totalBloqueadas: bloqueadas.length,
+      bloqueadas,
+      enSeguimiento
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/ratelimit-status/:ip', async (req, res) => {
+  try {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+    let decoded;
+    try { decoded = jwt.verify(auth.split(' ')[1], JWT_SECRET); } catch { return res.status(401).json({ error: 'Token inválido' }); }
+    if (decoded.rol !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
+
+    loginAttempts.delete(req.params.ip);
+    res.json({ ok: true, mensaje: 'IP desbloqueada' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 export { router as default, JWT_SECRET };
