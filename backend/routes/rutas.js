@@ -109,4 +109,44 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.get('/mapa/datos', async (req, res) => {
+  try {
+    const { fecha } = req.query;
+    const fechaHoy = fecha || new Date().toISOString().split('T')[0];
+
+    const rutas = await pool.query(`
+      SELECT r.id, r.nombre, r.fecha, r.vehiculo_id, r.estado,
+             r.distancia_total_estimada, r.tiempo_estimado, r.cantidad_paradas,
+             v.placa, v.alias as vehiculo_alias,
+             v.ultima_posicion_lat, v.ultima_posicion_lng
+      FROM logistics.rutas r
+      JOIN logistics.vehiculos v ON r.vehiculo_id=v.id
+      WHERE r.fecha=$1 ORDER BY r.id`, [fechaHoy]);
+
+    let paradas = [];
+    if (rutas.rows.length > 0) {
+      const r = await pool.query(`
+        SELECT pr.ruta_id, pr.secuencia, pr.estado as parada_estado,
+               p.id as pedido_id, p.latitud, p.longitud, p.cliente_nombre,
+               p.numero_factura, p.direccion
+        FROM logistics.paradas_ruta pr
+        JOIN logistics.pedidos_logistica p ON pr.pedido_id=p.id
+        WHERE pr.ruta_id = ANY($1) ORDER BY pr.ruta_id, pr.secuencia`,
+        [rutas.rows.map(r => r.id)]);
+      paradas = r.rows;
+    }
+
+    const vehiculos = await pool.query(`
+      SELECT id, placa, alias, ultima_posicion_lat, ultima_posicion_lng, estado
+      FROM logistics.vehiculos WHERE ultima_posicion_lat IS NOT NULL`);
+
+    res.json({
+      exitosa: true,
+      rutas: rutas.rows,
+      paradas,
+      vehiculos: vehiculos.rows
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 export default router;

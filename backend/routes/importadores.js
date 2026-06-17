@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import pool from '../config/db.js';
 import { parsearPdfSiesa } from '../utils/siesaPdfParser.js';
 import { parsearWidetech } from '../utils/widgetechExcelParser.js';
+import { geocodificar } from '../utils/geocoding.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadDir = path.join(__dirname, '..', '..', 'uploads');
@@ -41,15 +42,21 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
 
     let importados = 0;
     let fallidos = 0;
+    let geocodificados = 0;
     const errores = [];
 
     for (const pedido of resultado.pedidos) {
       try {
+        let lat = null, lng = null;
+        if (pedido.direccion) {
+          const coords = await geocodificar(pedido.direccion, pedido.ciudad || 'Medellín');
+          if (coords) { lat = coords.lat; lng = coords.lng; geocodificados++; }
+        }
         await pool.query(
-          `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_nombre, direccion, valor_credito, estado)
-           VALUES ($1, $2, $3, $4, 'pendiente')
+          `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_nombre, direccion, ciudad, telefono, latitud, longitud, valor_credito, estado)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pendiente')
            ON CONFLICT (numero_factura) DO NOTHING`,
-          [pedido.numeroFactura, pedido.clienteDir, pedido.direccion || '', pedido.valor || 0]
+          [pedido.numeroFactura, pedido.clienteNombre || pedido.clienteDir, pedido.direccion || '', pedido.ciudad || '', pedido.telefono || '', lat, lng, pedido.valor || 0]
         );
         importados++;
       } catch (e) {
@@ -70,7 +77,7 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
     res.json({
       exitosa: true,
       totalPedidos: resultado.totalPedidos,
-      importados, fallidos,
+      importados, fallidos, geocodificados,
       conductor: resultado.conductor,
       placa: resultado.placa
     });

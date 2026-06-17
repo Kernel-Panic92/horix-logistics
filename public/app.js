@@ -119,12 +119,15 @@ function navigate(page) {
   else if (page === 'rutas') cargarRutas();
   else if (page === 'usuarios') cargarUsuarios();
   else if (page === 'config') cargarConfig();
+  else if (page === 'mapa') cargarMapa();
 }
 
 /* ── Init ── */
 async function init() {
   if (localStorage.getItem('logistics_theme') === 'light') document.body.classList.add('light');
-  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('filtro-fecha').value = hoy;
+  document.getElementById('mapa-fecha').value = hoy;
   if (TOKEN) {
     try {
       const data = await api('/auth/verificar');
@@ -334,15 +337,41 @@ async function verRuta(id) {
     const data = await api('/rutas/' + id);
     const r = data.ruta;
     const paradas = data.paradas || [];
+    const tienenCoords = paradas.some(p => p.latitud && p.longitud);
     abrirModal(
       r.nombre || 'Ruta #' + r.id,
       `Vehículo: ${r.vehiculo_id} · Distancia: ${r.distancia_total_estimada||'—'} km · Tiempo: ${r.tiempo_estimado||'—'} min`,
-      `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>Cliente</th><th>Estado</th></tr></thead><tbody>
-        ${paradas.map(p => `<tr><td>${p.secuencia}</td><td>${p.cliente_nombre||'—'}</td><td><span class="badge badge-${p.estado==='completada'?'success':'warning'}">${p.estado}</span></td></tr>`).join('')}
-      </tbody></table></div>`,
-      `<button class="btn btn-secondary" onclick="cerrarModal()">Cerrar</button>`
+      `<div class="tbl-wrap" style="margin-bottom:12px;"><table class="tbl"><thead><tr><th>#</th><th>Cliente</th><th>Dir.</th><th>Estado</th></tr></thead><tbody>
+        ${paradas.map(p => `<tr><td>${p.secuencia}</td><td>${esc(p.cliente_nombre||'—')}</td><td class="truncate">${esc(p.direccion||'')}</td><td><span class="badge badge-${p.estado==='completada'?'success':'warning'}">${p.estado}</span></td></tr>`).join('')}
+      </tbody></table></div>
+      ${tienenCoords ? '<div id="mapa-ruta-detalle" style="height:280px;border-radius:10px;border:1px solid var(--border);"></div>' : ''}`,
+      `<button class="btn btn-secondary" onclick="cerrarRutaDetalle()">Cerrar</button>`
     );
+    if (tienenCoords) setTimeout(() => initMapaRutaDetalle(paradas), 200);
   } catch (e) { alert(e.message); }
+}
+
+function initMapaRutaDetalle(paradas) {
+  const el = document.getElementById('mapa-ruta-detalle');
+  if (!el || el._leafletMap) return;
+  const map = L.map(el).setView([paradas[0].latitud, paradas[0].longitud], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  const coords = paradas.filter(p => p.latitud && p.longitud).map(p => [p.latitud, p.longitud]);
+  if (coords.length) {
+    L.polyline(coords, { color: '#00A86B', weight: 3 }).addTo(map);
+    coords.forEach((c, i) => {
+      L.circleMarker(c, { radius: 6, color: '#00A86B', fillColor: '#fff', fillOpacity: 0.9, weight: 2 })
+        .addTo(map).bindPopup(`#${i+1} ${esc(paradas[i]?.cliente_nombre||'')}`);
+    });
+    map.fitBounds(coords, { padding: [30,30] });
+  }
+  el._leafletMap = map;
+}
+
+function cerrarRutaDetalle() {
+  const el = document.getElementById('mapa-ruta-detalle');
+  if (el && el._leafletMap) { el._leafletMap.remove(); el._leafletMap = null; }
+  cerrarModal();
 }
 
 async function generarRutas() {
@@ -908,6 +937,96 @@ async function cargarAuditoria() {
 function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* ── Mapa ── */
+let mapInstance = null;
+let mapLayers = { rutas: [], vehiculos: [], paradas: [] };
+
+const coloresRuta = ['#00A86B','#4f8ef7','#f7944f','#f7614f','#9b59b6','#1abc9c','#e67e22','#3498db'];
+let mapaFitted = false;
+
+function resetMapaLayers() {
+  Object.values(mapLayers).forEach(arr => arr.forEach(l => mapInstance?.removeLayer(l)));
+  mapLayers = { rutas: [], vehiculos: [], paradas: [] };
+}
+
+async function cargarMapa() {
+  const el = document.getElementById('mapa-contenedor');
+  if (!el) return; // page not visible
+  const fecha = document.getElementById('mapa-fecha').value || new Date().toISOString().split('T')[0];
+
+  // Init map once
+  if (!mapInstance) {
+    mapInstance = L.map(el).setView([6.2476, -75.5658], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '© OpenStreetMap'
+    }).addTo(mapInstance);
+    mapInstance.on('resize', () => mapInstance.invalidateSize());
+  }
+
+  resetMapaLayers();
+
+  try {
+    const data = await api('/rutas/mapa/datos?fecha=' + fecha);
+    const rutaSelect = document.getElementById('mapa-filtro-ruta');
+    rutaSelect.innerHTML = '<option value="">Todas las rutas</option>' +
+      data.rutas.map(r => `<option value="${r.id}">${esc(r.nombre||'Ruta #'+r.id)} · ${esc(r.placa)}</option>`).join('');
+
+    // Vehicles
+    for (const v of data.vehiculos) {
+      if (!v.ultima_posicion_lat || !v.ultima_posicion_lng) continue;
+      const marker = L.circleMarker([v.ultima_posicion_lat, v.ultima_posicion_lng], {
+        radius: 8, color: '#4f8ef7', fillColor: '#4f8ef7', fillOpacity: 0.8
+      }).addTo(mapInstance);
+      marker.bindPopup(`<b>${esc(v.placa)}</b><br>${esc(v.alias||'')}<br>Estado: ${v.estado}`);
+      mapLayers.vehiculos.push(marker);
+    }
+
+    // Routes + stops
+    let idx = 0;
+    for (const r of data.rutas) {
+      const paradasRuta = data.paradas.filter(p => p.ruta_id === r.id).filter(p => p.latitud && p.longitud);
+      if (paradasRuta.length < 2) continue;
+
+      const color = coloresRuta[idx % coloresRuta.length];
+      const coords = paradasRuta.map(p => [p.latitud, p.longitud]);
+
+      // polyline
+      const poly = L.polyline(coords, { color, weight: 3, opacity: 0.8 }).addTo(mapInstance);
+      poly.bindPopup(`<b>${esc(r.nombre||'Ruta #'+r.id)}</b><br>${esc(r.placa)}<br>${r.cantidad_paradas||paradasRuta.length} paradas · ${r.distancia_total_estimada||'—'} km`);
+      poly.rutaId = r.id;
+      mapLayers.rutas.push(poly);
+
+      // stop markers
+      for (const p of paradasRuta) {
+        const marker = L.circleMarker([p.latitud, p.longitud], {
+          radius: 6, color, fillColor: '#fff', fillOpacity: 0.9, weight: 2
+        }).addTo(mapInstance);
+        marker.bindPopup(`<b>#${p.secuencia}</b> ${esc(p.cliente_nombre||'')}<br>${esc(p.numero_factura||'')}<br>${esc(p.direccion||'')}`);
+        mapLayers.paradas.push(marker);
+      }
+      idx++;
+    }
+
+    if (data.rutas.length && !mapaFitted) {
+      const bounds = mapLayers.rutas.length ? mapLayers.rutas : mapLayers.vehiculos;
+      if (bounds.length) mapInstance.fitBounds(bounds, { padding: [40,40] });
+      mapaFitted = true;
+    }
+  } catch {}
+}
+
+function filtrarMapaRuta() {
+  const id = document.getElementById('mapa-filtro-ruta')?.value;
+  mapLayers.rutas.forEach(poly => {
+    if (!id) { poly.setStyle({ opacity: 0.8, weight: 3 }); }
+    else { poly.setStyle({ opacity: poly.rutaId == id ? 1 : 0.15, weight: poly.rutaId == id ? 4 : 2 }); }
+  });
+  mapLayers.paradas.forEach(m => {
+    if (!id) { m.setStyle({ opacity: 1 }); m.closeTooltip?.(); }
+    else { m.setStyle({ opacity: m.rutaId == id ? 1 : 0.2 }); }
+  });
 }
 
 init();
