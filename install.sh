@@ -90,28 +90,45 @@ info "Instalando dependencias..."
 npm install --omit=dev
 ok "Dependencias instaladas"
 
-# ── 5. Migraciones ──
+# ── 5. Crear BD si no existe ──
+info "Verificando base de datos..."
+source .env
+if command -v psql &>/dev/null; then
+  PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -tc \
+    "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 \
+    || PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -c "CREATE DATABASE $DB_NAME"
+  ok "Base de datos $DB_NAME lista"
+else
+  warn "psql no encontrado. Asegúrate de que la BD '$DB_NAME' exista manualmente."
+fi
+
+# ── 6. Migraciones ──
 info "Ejecutando migraciones..."
 npm run db:migrate
 ok "Migraciones completadas"
+
+# ── 7. Seed ──
+info "Sembrando usuario admin..."
+npm run db:seed
+ok "Seed completado"
 
 # ── 6. Seed ──
 info "Sembrando usuario admin..."
 npm run db:seed
 ok "Seed completado"
 
-# ── 7. Crear directorio uploads ──
+# ── 8. Crear directorio uploads ──
 mkdir -p uploads logs
 ok "Directorios creados (uploads, logs)"
 
-# ── 8. Iniciar con PM2 ──
+# ── 9. Iniciar con PM2 ──
 info "Iniciando servicio con PM2..."
 pm2 delete logistics 2>/dev/null || true
 pm2 start ecosystem.config.js --env production
 pm2 save
 ok "Servicio iniciado"
 
-# ── 9. Verificar ──
+# ── 10. Verificar ──
 sleep 2
 if pm2 info logistics &>/dev/null; then
   ok "PM2: logistics corriendo"
