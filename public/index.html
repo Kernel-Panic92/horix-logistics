@@ -211,6 +211,9 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
       </div>
     </nav>
     <div class="sidebar-footer">
+      <div class="nav-item" data-page="usuarios" onclick="navigate('usuarios')">
+        <span class="icon">👥</span> Usuarios
+      </div>
       <div class="nav-item" onclick="logout()"><span class="icon">🚪</span> Cerrar sesión</div>
     </div>
   </aside>
@@ -319,6 +322,51 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
             <input type="file" id="file-widetech" accept=".xlsx,.xls" style="display:none" onchange="previsualizarArchivo(this,'file-widetech-name')">
             <button class="btn btn-primary" onclick="importarWidetech()" id="btn-import-widetech" style="width:100%;justify-content:center;" disabled>Importar Widetech</button>
             <div id="result-widetech" style="margin-top:10px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Usuarios -->
+      <div class="page" id="page-usuarios">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>Usuarios</h3><p>Gestión de usuarios del sistema</p></div>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalUsuario()">+ Nuevo</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-usuarios"><thead><tr>
+            <th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th style="width:80px"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <!-- Configuración -->
+      <div class="page" id="page-config">
+        <div class="page-header">
+          <h3>Configuración</h3>
+          <p>Ajustes del sistema</p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div class="card">
+            <h4 style="margin-bottom:12px;font-family:var(--font-head);">🎨 Apariencia</h4>
+            <div class="form-group">
+              <label>Tema</label>
+              <select onchange="if(this.value==='light') document.body.classList.add('light'); else document.body.classList.remove('light'); localStorage.setItem('logistics_theme', this.value);" id="sel-tema">
+                <option value="dark">Oscuro</option>
+                <option value="light">Claro</option>
+              </select>
+            </div>
+          </div>
+          <div class="card">
+            <h4 style="margin-bottom:12px;font-family:var(--font-head);">🔗 Integración</h4>
+            <div class="form-group">
+              <label>URL del servidor OSRM</label>
+              <input type="text" id="cfg-osrm" placeholder="https://router.project-osrm.org" readonly style="opacity:.6;cursor:not-allowed;">
+              <div class="help">Configurado en .env (requiere reinicio)</div>
+            </div>
+            <div class="form-group mt-12">
+              <label>Versión del sistema</label>
+              <input type="text" id="cfg-version" readonly style="opacity:.6;cursor:not-allowed;">
+            </div>
           </div>
         </div>
       </div>

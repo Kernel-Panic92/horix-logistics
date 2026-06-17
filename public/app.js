@@ -70,6 +70,8 @@ function navigate(page) {
   else if (page === 'vehiculos') cargarVehiculos();
   else if (page === 'pedidos') cargarPedidos();
   else if (page === 'rutas') cargarRutas();
+  else if (page === 'usuarios') cargarUsuarios();
+  else if (page === 'config') cargarConfig();
 }
 
 /* ── Init ── */
@@ -352,4 +354,85 @@ async function importarWidetech() {
   }
 }
 
+/* ── Usuarios ── */
+async function cargarUsuarios() {
+  const tbody = document.querySelector('#tbl-usuarios tbody');
+  try {
+    const data = await api('/usuarios');
+    if (!data.usuarios?.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:32px;">No hay usuarios</td></tr>'; return; }
+    tbody.innerHTML = data.usuarios.map(u => `
+      <tr>
+        <td><strong>${u.nombre}</strong></td>
+        <td>${u.email}</td>
+        <td><span class="badge badge-info">${u.rol}</span></td>
+        <td><span class="badge badge-${u.activo ? 'success' : 'danger'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+        <td>${u.created_at ? u.created_at.slice(0,10) : '—'}</td>
+        <td><button class="btn btn-sm btn-secondary" onclick="editarUsuario(${u.id})">✏️</button></td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Error al cargar</td></tr>';
+  }
+}
+
+function abrirModalUsuario(data) {
+  const d = data || {};
+  abrirModal(
+    data ? 'Editar usuario' : 'Nuevo usuario',
+    data ? 'Actualiza los datos del usuario' : 'Crea un nuevo usuario del sistema',
+    `
+      <div class="form-grid">
+        <div class="form-group"><label>Nombre *</label><input id="u-nombre" value="${d.nombre||''}"></div>
+        <div class="form-group"><label>Email *</label><input type="email" id="u-email" value="${d.email||''}"></div>
+        <div class="form-group"><label>Contraseña ${data?'(dejar vacío para mantener)':''} *</label><input type="password" id="u-pass" ${data?'placeholder="Sin cambios"':'required'}></div>
+        <div class="form-group"><label>Rol</label><select id="u-rol">
+          <option value="admin" ${d.rol==='admin'?'selected':''}>Administrador</option>
+          <option value="operador" ${d.rol==='operador'?'selected':''}>Operador</option>
+          <option value="visor" ${d.rol==='visor'?'selected':''}>Visor</option>
+        </select></div>
+        ${data ? '<div class="form-group"><label>Activo</label><select id="u-activo"><option value="true" '+(d.activo?'selected':'')+'>Sí</option><option value="false" '+(!d.activo?'selected':'')+'>No</option></select></div>' : ''}
+      </div>
+    `,
+    `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="${data ? 'guardarUsuario('+d.id+')' : 'guardarUsuario()'}">${data ? 'Guardar cambios' : 'Crear usuario'}</button>`
+  );
+}
+
+function editarUsuario(id) {
+  api('/usuarios').then(d => {
+    const u = d.usuarios.find(x => x.id === id);
+    if (u) abrirModalUsuario(u);
+  }).catch(e => alert(e.message));
+}
+
+async function guardarUsuario(id) {
+  const body = {
+    nombre: document.getElementById('u-nombre').value.trim(),
+    email: document.getElementById('u-email').value.trim(),
+    rol: document.getElementById('u-rol').value
+  };
+  if (id) {
+    body.activo = document.getElementById('u-activo')?.value === 'true';
+    const pass = document.getElementById('u-pass').value;
+    if (pass) body.password = pass;
+  } else {
+    body.password = document.getElementById('u-pass').value;
+  }
+  if (!body.nombre || !body.email) { alert('Nombre y email requeridos'); return; }
+  if (!id && !body.password) { alert('Contraseña requerida'); return; }
+  try {
+    if (id) await api('/usuarios/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else await api('/usuarios', { method: 'POST', body: JSON.stringify(body) });
+    cerrarModal();
+    cargarUsuarios();
+  } catch (e) { alert(e.message); }
+}
+
+/* ── Configuración ── */
+async function cargarConfig() {
+  document.getElementById('sel-tema').value = document.body.classList.contains('light') ? 'light' : 'dark';
+  document.getElementById('cfg-version').value = '1.0.0';
+}
+
 init();
+
