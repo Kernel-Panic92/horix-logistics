@@ -98,7 +98,7 @@ npm run dev
 
 #### Producción con PM2:
 ```bash
-pm2 start ecosystem.config.js --env production
+pm2 start ecosystem.config.cjs --env production
 pm2 save
 pm2 startup
 ```
@@ -217,7 +217,7 @@ horix-logistics/
 ├── install.sh                   ← Instalador automatizado
 ├── .env.example
 ├── docker-compose.yml           ← PostgreSQL + OSRM
-├── ecosystem.config.js          ← PM2
+├── ecosystem.config.cjs         ← PM2
 ├── package.json
 └── README.md
 ```

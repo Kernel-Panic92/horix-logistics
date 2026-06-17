@@ -28,7 +28,7 @@ git clone <url-repo> horix-logistics
 cd horix-logistics
 npm install
 npm run db:migrate
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 ```
 
 ### 2. Verificar que corre

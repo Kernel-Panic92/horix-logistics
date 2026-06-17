@@ -124,7 +124,7 @@ ok "Directorios creados (uploads, logs)"
 # ── 9. Iniciar con PM2 ──
 info "Iniciando servicio con PM2..."
 pm2 delete logistics 2>/dev/null || true
-pm2 start ecosystem.config.js --env production
+pm2 start ecosystem.config.cjs --env production
 pm2 save
 ok "Servicio iniciado"
 

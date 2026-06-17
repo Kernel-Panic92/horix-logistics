@@ -19,7 +19,7 @@ horix-logistics/
 ├── 📦 package.json                 (Dependencias npm)
 ├── ⚙️  .env.example                (Variables de entorno)
 ├── 🐳 docker-compose.yml           (OSRM + BD en Docker)
-├── 🚀 ecosystem.config.js          (Configuración PM2)
+├── 🚀 ecosystem.config.cjs         (Configuración PM2)
 │
 ├── backend/
 │   ├── server.js                   (Servidor Express)
@@ -85,7 +85,7 @@ npm run db:migrate
 ### 5. Iniciar con PM2
 
 ```bash
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 
 # Verificar
 pm2 status
@@ -257,7 +257,7 @@ pm2 logs logistics
 1. **Para desarrollo:** Usa `npm run dev` (nodemon reinicia automáticamente)
 2. **Para tests:** Carga tus CSVs reales y verifica importaciones
 3. **Para PM2:** Guarda configuración con `pm2 save` para que arranque con sistema
-4. **Para escalar:** Cambiar a múltiples instancias en `ecosystem.config.js`
+4. **Para escalar:** Cambiar a múltiples instancias en `ecosystem.config.cjs`
 
 ## 📞 Contacto
 

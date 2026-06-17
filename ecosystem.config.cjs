@@ -28,8 +28,8 @@ module.exports = {
 
 /*
 Uso:
-  - Iniciar:     pm2 start ecosystem.config.js
-  - Desarrollo:  pm2 start ecosystem.config.js --env development
+  - Iniciar:     pm2 start ecosystem.config.cjs
+  - Desarrollo:  pm2 start ecosystem.config.cjs --env development
   - Logs:        pm2 logs logistics
   - Monitorear:  pm2 monit
   - Guardar:     pm2 save

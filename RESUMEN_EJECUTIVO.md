@@ -53,7 +53,7 @@ npm run db:migrate
 npm run dev
 
 # Producción con PM2
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 ```
 
 ### 4. Verificar
@@ -263,7 +263,7 @@ horix-logistics/
 ├── package.json                   (Dependencias)
 ├── .env.example                   (Variables de entorno)
 ├── docker-compose.yml             (OSRM + BD en Docker)
-├── ecosystem.config.js            (PM2 para producción)
+├── ecosystem.config.cjs           (PM2 para producción)
 │
 ├── backend/
 │   ├── server.js                  (Express principal)
@@ -358,7 +358,7 @@ pm2 logs logistics
 1. ✅ Instalar dependencias (`npm install`)
 2. ✅ Configurar `.env`
 3. ✅ Ejecutar migraciones (`npm run db:migrate`)
-4. ✅ Iniciar con PM2 (`pm2 start ecosystem.config.js`)
+4. ✅ Iniciar con PM2 (`pm2 start ecosystem.config.cjs`)
 5. 🔄 Desarrollar Frontend React
 6. 🔄 Crear MCP Tools para Claude
 7. 🔄 App móvil para conductores
