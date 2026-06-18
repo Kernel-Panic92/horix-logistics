@@ -300,8 +300,8 @@ async function cargarPedidos() {
         <td><strong>${p.numero_factura}</strong></td>
         <td class="truncate">${esc(p.cliente_nombre_real) || esc(p.cliente_nombre) || '—'}</td>
         <td class="truncate">${p.direccion || '—'}</td>
-        <td style="white-space:nowrap">$${(p.valor_contado||0).toLocaleString()}</td>
-        <td style="white-space:nowrap">$${(p.valor_credito||0).toLocaleString()}</td>
+        <td style="white-space:nowrap">$${Number(p.valor_contado||0).toLocaleString()}</td>
+        <td style="white-space:nowrap">$${Number(p.valor_credito||0).toLocaleString()}</td>
         <td>${p.placa || '—'}</td>
         <td><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></td>
         <td>${p.ruta_id ? 'Ruta #'+p.ruta_id : '—'}</td>
@@ -324,8 +324,8 @@ async function verPedido(id) {
         <div><strong>Dirección:</strong><br>${p.direccion || '—'}</div>
         <div><strong>Ciudad:</strong><br>${p.ciudad || '—'}</div>
         <div><strong>Teléfono:</strong><br>${p.telefono || '—'}</div>
-        <div><strong>V. Contado:</strong><br>$${(p.valor_contado||0).toLocaleString()}</div>
-        <div><strong>V. Crédito:</strong><br>$${(p.valor_credito||0).toLocaleString()}</div>
+        <div><strong>V. Contado:</strong><br>$${Number(p.valor_contado||0).toLocaleString()}</div>
+        <div><strong>V. Crédito:</strong><br>$${Number(p.valor_credito||0).toLocaleString()}</div>
         <div><strong>Conductor:</strong><br>${p.conductor || '—'}</div>
         <div><strong>Placa:</strong><br>${p.placa || '—'}</div>
         <div><strong>Nro Guía:</strong><br>${p.nro_guia || '—'}</div>
