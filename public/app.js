@@ -293,7 +293,7 @@ async function cargarPedidos() {
   const estado = document.getElementById('filtro-pedidos').value;
   try {
     const data = await api('/pedidos' + (estado ? '?estado=' + estado : ''));
-    if (!data.pedidos?.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:32px;">No hay pedidos</td></tr>'; return; }
+    if (!data.pedidos?.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No hay pedidos</td></tr>'; return; }
     tbody.innerHTML = data.pedidos.map(p => `
       <tr>
         <td><strong>${p.numero_factura}</strong></td>
@@ -302,11 +302,35 @@ async function cargarPedidos() {
         <td>$${(p.valor_credito||0).toLocaleString()}</td>
         <td><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></td>
         <td>${p.ruta_id ? 'Ruta #'+p.ruta_id : '—'}</td>
+        <td><button class="btn btn-sm btn-secondary" onclick="verPedido(${p.id})">👁️</button></td>
       </tr>
     `).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Error al cargar</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Error al cargar</td></tr>';
   }
+}
+
+async function verPedido(id) {
+  try {
+    const data = await api('/pedidos/' + id);
+    const p = data.pedido;
+    document.getElementById('pedido-detalle').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px;">
+        <div><strong>Factura:</strong><br>${p.numero_factura}</div>
+        <div><strong>Cliente:</strong><br>${p.cliente_nombre || '—'}</div>
+        <div><strong>Dirección:</strong><br>${p.direccion || '—'}</div>
+        <div><strong>Ciudad:</strong><br>${p.ciudad || '—'}</div>
+        <div><strong>Teléfono:</strong><br>${p.telefono || '—'}</div>
+        <div><strong>Valor crédito:</strong><br>$${(p.valor_credito||0).toLocaleString()}</div>
+        <div><strong>Estado:</strong><br><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></div>
+        <div><strong>Ruta:</strong><br>${p.ruta_id ? 'Ruta #'+p.ruta_id : 'Sin asignar'}</div>
+        <div><strong>Latitud:</strong><br>${p.latitud || '—'}</div>
+        <div><strong>Longitud:</strong><br>${p.longitud || '—'}</div>
+        <div><strong>Fecha creación:</strong><br>${p.created_at ? new Date(p.created_at).toLocaleString('es-CO') : '—'}</div>
+        <div><strong>Última actualización:</strong><br>${p.updated_at ? new Date(p.updated_at).toLocaleString('es-CO') : '—'}</div>
+      </div>`;
+    document.getElementById('modal-pedido').classList.add('show');
+  } catch (e) { alert('Error: ' + e.message); }
 }
 
 /* ── Rutas ── */

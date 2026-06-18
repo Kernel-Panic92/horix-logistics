@@ -470,7 +470,16 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
   </div>
 </div>
 
-<!-- Modal -->
+<!-- Modal Pedido -->
+<div class="modal-overlay" id="modal-pedido" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title" style="font-family:var(--font-head);font-size:18px;margin-bottom:12px;">📦 Detalle del Pedido</div>
+    <div id="pedido-detalle">Cargando...</div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="document.getElementById('modal-pedido').classList.remove('show')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Modal genérico -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <h3 id="modal-title">Título</h3>
@@ -481,6 +490,6 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
