@@ -168,6 +168,22 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 #mapa-contenedor .leaflet-container{background:var(--surface2)}
 #mapa-contenedor .leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border-radius:10px}
 #mapa-contenedor .leaflet-popup-tip{background:var(--surface)}
+
+/* ── Clientes card grid (Horix style) ── */
+.cli-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.cli-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;transition:border-color .2s}
+.cli-card:hover{border-color:var(--accent)}
+.cli-card-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.cli-avatar{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:800;font-size:15px;color:#fff;flex-shrink:0}
+.cli-name{font-family:var(--font-head);font-size:14px;font-weight:700;margin-bottom:2px}
+.cli-meta{font-size:12px;color:var(--muted)}
+.cli-addr{font-size:11px;color:var(--accent);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cli-stats{display:flex;gap:14px;margin-bottom:12px}
+.cli-stat{font-size:11px;color:var(--muted)}
+.cli-stat strong{display:block;font-size:15px;font-weight:700;color:var(--text)}
+.cli-actions{display:flex;gap:6px;padding-top:12px;border-top:1px solid var(--border)}
+.cli-check{accent-color:var(--accent);cursor:pointer;margin-top:3px;flex-shrink:0}
+body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px rgba(0,0,0,.05)}
 </style>
 </head>
 <body>
@@ -386,16 +402,26 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 
       <!-- Clientes -->
       <div class="page" id="page-clientes">
-        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+        <div class="page-header flex" style="justify-content:space-between;align-items:flex-start;">
           <div><h3>Clientes</h3><p>Gestión de clientes importados</p></div>
           <div class="flex gap-sm">
-            <input type="text" id="filtro-clientes" placeholder="Buscar cliente..." oninput="cargarClientes()" style="width:220px;">
             <button class="btn btn-danger btn-sm" id="btn-del-cliente" style="display:none" onclick="eliminarSeleccionados('cliente')">🗑️ Eliminar</button>
-            <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Nuevo</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Nuevo Cliente</button>
           </div>
         </div>
-        <div class="table-wrap">
-          <table id="tbl-clientes" class="table"><thead><tr><th style="width:36px"><input type="checkbox" onchange="toggleAll('cliente',this.checked)"></th><th>Nombre</th><th>Dirección</th><th>Ciudad</th><th>Teléfono</th><th>Coordenadas</th><th>Pedidos</th><th>Última importación</th><th style="width:100px"></th></tr></thead><tbody><tr><td colspan="9" class="text-center text-muted" style="padding:32px;">Cargando...</td></tr></tbody></table>
+        <div style="margin-bottom:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div style="position:relative;flex:1;min-width:200px;max-width:380px;">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span>
+            <input type="text" id="filtro-clientes" placeholder="Buscar por nombre, ciudad, teléfono..."
+                   oninput="cargarClientes()"
+                   style="width:100%;padding:9px 12px 9px 36px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none;box-sizing:border-box;"
+                   onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('filtro-clientes').value='';cargarClientes()">🗑️ Limpiar</button>
+          <span id="cli-count" style="font-size:12px;color:var(--muted);white-space:nowrap;"></span>
+        </div>
+        <div class="cli-grid" id="cli-grid">
+          <div class="text-center text-muted" style="padding:32px;grid-column:1/-1;">Cargando...</div>
         </div>
       </div>
 
@@ -512,6 +538,6 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

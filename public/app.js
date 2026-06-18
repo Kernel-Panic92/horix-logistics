@@ -327,26 +327,46 @@ async function verPedido(id) {
 
 /* ── Clientes ── */
 async function cargarClientes() {
-  const tbody = document.querySelector('#tbl-clientes tbody');
+  const grid = document.getElementById('cli-grid');
+  const count = document.getElementById('cli-count');
   const filtro = document.getElementById('filtro-clientes')?.value.trim() || '';
   try {
     const data = await api('/clientes' + (filtro ? '?q=' + encodeURIComponent(filtro) : ''));
-    if (!data.clientes?.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:32px;">No hay clientes</td></tr>'; return; }
-    tbody.innerHTML = data.clientes.map(c => `
-      <tr>
-        <td><input type="checkbox" class="cb-cliente" value="${c.id}" onchange="actualizarBtnEliminar('cliente')"></td>
-        <td><strong>${esc(c.nombre)}</strong></td>
-        <td class="truncate" style="max-width:200px">${esc(c.direccion || '—')}</td>
-        <td>${esc(c.ciudad || '—')}</td>
-        <td>${esc(c.telefono || '—')}</td>
-        <td style="font-size:12px">${c.latitud ? c.latitud.toFixed(4) + ', ' + c.longitud.toFixed(4) : '—'}</td>
-        <td>${c.cantidad_pedidos || 0}</td>
-        <td style="font-size:12px">${c.ultima_importacion ? new Date(c.ultima_importacion).toLocaleString('es-CO') : '—'}</td>
-        <td><button class="btn btn-sm btn-secondary" onclick="editarCliente(${c.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('cliente',${c.id},'${esc(c.nombre)}')" title="Eliminar">🗑️</button></td>
-      </tr>
-    `).join('');
+    if (!data.clientes?.length) {
+      grid.innerHTML = '<div class="text-center text-muted" style="padding:32px;grid-column:1/-1;">No hay clientes</div>';
+      count.textContent = '0 clientes';
+      actualizarBtnEliminar('cliente');
+      return;
+    }
+    count.textContent = data.clientes.length + ' cliente' + (data.clientes.length !== 1 ? 's' : '');
+    grid.innerHTML = data.clientes.map(c => {
+      const iniciales = (c.nombre || '').split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+      let hue = 0;
+      for (let i = 0; i < c.nombre.length; i++) hue = c.nombre.charCodeAt(i) + ((hue << 5) - hue);
+      const bg = `hsl(${Math.abs(hue) % 360}, 60%, 45%)`;
+      return `<div class="cli-card">
+        <div class="cli-card-head">
+          <input type="checkbox" class="cb-cliente" value="${c.id}" onchange="actualizarBtnEliminar('cliente')">
+          <div class="cli-avatar" style="background:${bg}">${iniciales}</div>
+          <div style="flex:1;min-width:0">
+            <div class="cli-name">${esc(c.nombre)}</div>
+            <div class="cli-meta">${esc(c.ciudad || '—')} · ${esc(c.telefono || '—')}</div>
+            <div class="cli-addr" title="${esc(c.direccion || '')}">📍 ${esc(c.direccion || 'Sin dirección')}</div>
+          </div>
+        </div>
+        <div class="cli-stats">
+          <div class="cli-stat"><strong>${c.cantidad_pedidos || 0}</strong>Pedidos</div>
+          <div class="cli-stat"><strong>${c.ultima_importacion ? new Date(c.ultima_importacion).toLocaleDateString('es-CO') : '—'}</strong>Última importación</div>
+        </div>
+        <div class="cli-actions">
+          <button class="btn btn-sm btn-secondary" onclick="editarCliente(${c.id})" style="flex:1">✏️ Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('cliente',${c.id},'${esc(c.nombre)}')">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+    actualizarBtnEliminar('cliente');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error al cargar</td></tr>';
+    grid.innerHTML = '<div class="text-center text-muted" style="padding:32px;grid-column:1/-1;">Error al cargar</div>';
   }
 }
 
