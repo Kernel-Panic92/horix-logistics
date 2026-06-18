@@ -482,6 +482,12 @@ function actualizarBtnEliminar(tipo) {
   const checks = document.querySelectorAll('.cb-' + tipo + ':checked');
   const btn = document.getElementById('btn-del-' + tipo);
   if (btn) btn.style.display = checks.length > 0 ? 'inline-flex' : 'none';
+  // Sync "Seleccionar todo" for clientes
+  if (tipo === 'cliente') {
+    const total = document.querySelectorAll('.cb-cliente').length;
+    const selAll = document.querySelector('#page-clientes input[onchange*="toggleAll"]');
+    if (selAll && total > 0) selAll.checked = checks.length === total;
+  }
 }
 
 function toggleAll(tipo, checked) {
