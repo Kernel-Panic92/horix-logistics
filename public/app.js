@@ -225,9 +225,10 @@ async function cargarVehiculos() {
   const tbody = document.querySelector('#tbl-vehiculos tbody');
   try {
     const data = await api('/vehiculos');
-    if (!data.vehiculos?.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No hay vehículos registrados</td></tr>'; return; }
+    if (!data.vehiculos?.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay vehículos registrados</td></tr>'; return; }
     tbody.innerHTML = data.vehiculos.map(v => `
       <tr>
+        <td><input type="checkbox" class="cb-vehiculo" value="${v.id}" onchange="actualizarBtnEliminar('vehiculo')"></td>
         <td><strong>${v.placa}</strong></td>
         <td>${v.alias || '—'}</td>
         <td>${v.sede || '—'}</td>
@@ -294,9 +295,10 @@ async function cargarPedidos() {
   const estado = document.getElementById('filtro-pedidos').value;
   try {
     const data = await api('/pedidos' + (estado ? '?estado=' + estado : ''));
-    if (!data.pedidos?.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No hay pedidos</td></tr>'; return; }
+    if (!data.pedidos?.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay pedidos</td></tr>'; return; }
     tbody.innerHTML = data.pedidos.map(p => `
       <tr>
+        <td><input type="checkbox" class="cb-pedido" value="${p.id}" onchange="actualizarBtnEliminar('pedido')"></td>
         <td><strong>${p.numero_factura}</strong></td>
         <td class="truncate">${p.cliente_nombre || '—'}</td>
         <td class="truncate">${p.direccion || '—'}</td>
@@ -340,9 +342,10 @@ async function cargarClientes() {
   const filtro = document.getElementById('filtro-clientes')?.value.trim() || '';
   try {
     const data = await api('/clientes' + (filtro ? '?q=' + encodeURIComponent(filtro) : ''));
-    if (!data.clientes?.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay clientes</td></tr>'; return; }
+    if (!data.clientes?.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:32px;">No hay clientes</td></tr>'; return; }
     tbody.innerHTML = data.clientes.map(c => `
       <tr>
+        <td><input type="checkbox" class="cb-cliente" value="${c.id}" onchange="actualizarBtnEliminar('cliente')"></td>
         <td><strong>${esc(c.nombre)}</strong></td>
         <td class="truncate" style="max-width:200px">${esc(c.direccion || '—')}</td>
         <td>${esc(c.ciudad || '—')}</td>
@@ -462,6 +465,32 @@ function confirmarEliminar(tipo, id, label) {
     else if (tipo === 'pedido') cargarPedidos();
     else if (tipo === 'cliente') cargarClientes();
   }).catch(e => alert(e.message));
+}
+
+/* ── Bulk delete ── */
+function actualizarBtnEliminar(tipo) {
+  const checks = document.querySelectorAll('.cb-' + tipo + ':checked');
+  const btn = document.getElementById('btn-del-' + tipo);
+  if (btn) btn.style.display = checks.length > 0 ? 'inline-flex' : 'none';
+}
+
+function toggleAll(tipo, checked) {
+  document.querySelectorAll('.cb-' + tipo).forEach(cb => cb.checked = checked);
+  actualizarBtnEliminar(tipo);
+}
+
+async function eliminarSeleccionados(tipo) {
+  const checks = document.querySelectorAll('.cb-' + tipo + ':checked');
+  if (!checks.length) return;
+  const ids = Array.from(checks).map(c => +c.value);
+  if (!confirm(`¿Eliminar ${ids.length} ${tipo}(s) seleccionados?`)) return;
+  const ep = { vehiculo: '/vehiculos/seleccionados', pedido: '/pedidos/seleccionados', cliente: '/clientes/seleccionados' };
+  try {
+    await api(ep[tipo], { method: 'DELETE', body: JSON.stringify({ ids }) });
+    if (tipo === 'vehiculo') cargarVehiculos();
+    else if (tipo === 'pedido') cargarPedidos();
+    else if (tipo === 'cliente') cargarClientes();
+  } catch (e) { alert(e.message); }
 }
 
 /* ── Rutas ── */

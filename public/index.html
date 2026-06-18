@@ -300,10 +300,14 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
       <div class="page" id="page-vehiculos">
         <div class="page-header flex" style="justify-content:space-between;align-items:center;">
           <div><h3>Vehículos</h3><p>Gestión de flota disponible</p></div>
-          <button class="btn btn-primary btn-sm" onclick="abrirModalVehiculo()">+ Nuevo</button>
+          <div class="flex gap-sm">
+            <button class="btn btn-danger btn-sm" id="btn-del-vehiculo" style="display:none" onclick="eliminarSeleccionados('vehiculo')">🗑️ Eliminar</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalVehiculo()">+ Nuevo</button>
+          </div>
         </div>
         <div class="tbl-wrap">
           <table class="tbl" id="tbl-vehiculos"><thead><tr>
+            <th style="width:36px"><input type="checkbox" onchange="toggleAll('vehiculo',this.checked)"></th>
             <th>Placa</th><th>Alias</th><th>Sede</th><th>Cap. Peso</th><th>Cap. Vol.</th><th>Estado</th><th style="width:80px"></th>
           </tr></thead><tbody></tbody></table>
         </div>
@@ -321,11 +325,13 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
               <option value="entregado">Entregados</option>
               <option value="cancelado">Cancelados</option>
             </select>
+            <button class="btn btn-danger btn-sm" id="btn-del-pedido" style="display:none" onclick="eliminarSeleccionados('pedido')">🗑️ Eliminar</button>
             <button class="btn btn-primary btn-sm" onclick="abrirModalPedido()">+ Nuevo</button>
           </div>
         </div>
         <div class="tbl-wrap">
           <table class="tbl" id="tbl-pedidos"><thead><tr>
+            <th style="width:36px"><input type="checkbox" onchange="toggleAll('pedido',this.checked)"></th>
             <th>Factura</th><th>Cliente</th><th>Dirección</th><th>Valor</th><th>Estado</th><th>Ruta</th><th style="width:100px"></th>
           </tr></thead><tbody></tbody></table>
         </div>
@@ -387,11 +393,12 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
           <div><h3>Clientes</h3><p>Gestión de clientes importados</p></div>
           <div class="flex gap-sm">
             <input type="text" id="filtro-clientes" placeholder="Buscar cliente..." oninput="cargarClientes()" style="width:220px;">
+            <button class="btn btn-danger btn-sm" id="btn-del-cliente" style="display:none" onclick="eliminarSeleccionados('cliente')">🗑️ Eliminar</button>
             <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Nuevo</button>
           </div>
         </div>
         <div class="table-wrap">
-          <table id="tbl-clientes" class="table"><thead><tr><th>Nombre</th><th>Dirección</th><th>Ciudad</th><th>Teléfono</th><th>Coordenadas</th><th>Pedidos</th><th>Última importación</th><th style="width:100px"></th></tr></thead><tbody><tr><td colspan="8" class="text-center text-muted" style="padding:32px;">Cargando...</td></tr></tbody></table>
+          <table id="tbl-clientes" class="table"><thead><tr><th style="width:36px"><input type="checkbox" onchange="toggleAll('cliente',this.checked)"></th><th>Nombre</th><th>Dirección</th><th>Ciudad</th><th>Teléfono</th><th>Coordenadas</th><th>Pedidos</th><th>Última importación</th><th style="width:100px"></th></tr></thead><tbody><tr><td colspan="9" class="text-center text-muted" style="padding:32px;">Cargando...</td></tr></tbody></table>
         </div>
       </div>
 
@@ -508,6 +515,6 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

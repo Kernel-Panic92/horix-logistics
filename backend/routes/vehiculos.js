@@ -53,6 +53,15 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.delete('/seleccionados', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
+    const result = await pool.query('DELETE FROM logistics.vehiculos WHERE id = ANY($1::int[]) RETURNING id', [ids]);
+    res.json({ eliminados: result.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM logistics.vehiculos WHERE id=$1 RETURNING id', [req.params.id]);
