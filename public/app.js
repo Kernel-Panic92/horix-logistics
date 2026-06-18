@@ -360,7 +360,7 @@ async function cargarClientes() {
         </div>
         <div class="cli-actions">
           <button class="btn btn-sm btn-secondary" onclick="editarCliente(${c.id})" style="flex:1">✏️ Editar</button>
-          <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('cliente',${c.id},'${esc(c.nombre)}')">🗑️</button>
+          <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('cliente',${c.id})">🗑️</button>
         </div>
       </div>`;
     }).join('');
@@ -465,7 +465,7 @@ async function guardarCliente(id) {
 
 /* ── Eliminar (genérico) ── */
 function confirmarEliminar(tipo, id, label) {
-  if (!confirm(`¿Eliminar ${tipo} "${label}"?`)) return;
+  if (!confirm(label ? `¿Eliminar ${tipo} "${label}"?` : `¿Eliminar ${tipo} #${id}?`)) return;
   const endpoints = { vehiculo: '/vehiculos/', pedido: '/pedidos/', cliente: '/clientes/' };
   const ep = endpoints[tipo];
   if (!ep) return;

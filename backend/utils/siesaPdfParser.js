@@ -35,7 +35,7 @@ export async function parsearPdfSiesa(rutaArchivo) {
     for (let i = 0; i < lineas.length; i++) {
       const l = lineas[i];
       // Buscar valor + FEV pegados: dígitos,puntoycoma,dígitos,FEV
-      const match = l.match(/(\d[\d\.]*,\d{2})\d*FEV[-\s]?(\d+)/i);
+      const match = l.match(/(\d[\d\.]*,\d{2})[\d\.,]*FEV[-\s]?(\d+)/i);
       if (match) {
         const valorRaw = match[1];
         const fevNum = match[2];
@@ -168,11 +168,14 @@ function extraerValor(lineaActual, lineaSiguiente) {
 
 function limpiarNombreCliente(nombre) {
   if (!nombre) return '';
-  return nombre
+  let limpio = nombre
     .replace(/\s+\d[\d\.,]+\s*(FEV[-\s]\d+)?\s*$/i, '')
     .replace(/\s+FEV[-\s]\d+\s*$/i, '')
     .replace(/\s+$/, '')
     .trim();
+  // Si tras limpiar solo quedan dígitos/puntuación, es un valor mal extraído
+  if (/^[\d\.,\s]+$/.test(limpio)) return '';
+  return limpio;
 }
 
 function parsearValorColombiano(s) {
