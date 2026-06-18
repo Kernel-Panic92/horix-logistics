@@ -177,8 +177,8 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 .cli-card:hover{border-color:var(--accent)}
 .cli-card-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
 .cli-avatar{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:800;font-size:15px;color:#fff;flex-shrink:0}
-.cli-name{font-family:var(--font-head);font-size:14px;font-weight:700;margin-bottom:2px}
-.cli-meta{font-size:12px;color:var(--muted)}
+.cli-name{font-family:var(--font-head);font-size:14px;font-weight:700;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-meta{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cli-addr{font-size:11px;color:var(--accent);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cli-stats{display:flex;gap:14px;margin-bottom:12px}
 .cli-stat{font-size:11px;color:var(--muted)}
@@ -543,6 +543,6 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
