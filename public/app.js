@@ -345,12 +345,12 @@ async function cargarClientes() {
       let hue = 0;
       for (let i = 0; i < nombre.length; i++) hue = nombre.charCodeAt(i) + ((hue << 5) - hue);
       const bg = `hsl(${Math.abs(hue) % 360}, 60%, 45%)`;
-      return `<div class="cli-card">
+      return `<div class="cli-card" data-id="${c.id}">
         <div class="cli-card-head">
           <input type="checkbox" class="cb-cliente" value="${c.id}" onchange="actualizarBtnEliminar('cliente')">
-          <div class="cli-avatar" style="background:${bg}">${iniciales}</div>
+          <div class="cli-avatar" style="background:${bg}" title="${esc(c.nombre)}">${iniciales}</div>
           <div style="flex:1;min-width:0">
-            <div class="cli-name">${esc(c.nombre)}</div>
+            <div class="cli-name"><strong>${esc(c.nombre) || '—'}</strong></div>
             <div class="cli-meta">${esc(c.ciudad || '—')} · ${esc(c.telefono || '—')}</div>
             <div class="cli-addr" title="${esc(c.direccion || '')}">📍 ${esc(c.direccion || 'Sin dirección')}</div>
           </div>
