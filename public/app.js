@@ -212,8 +212,13 @@ async function cargarDashboard() {
 /* ── Vehículos ── */
 async function cargarVehiculos() {
   const tbody = document.querySelector('#tbl-vehiculos tbody');
+  const estado = document.getElementById('filtro-vehiculos-estado').value;
+  const q = document.getElementById('filtro-vehiculos-q').value.trim();
+  const params = new URLSearchParams();
+  if (estado) params.set('estado', estado);
+  if (q) params.set('q', q);
   try {
-    const data = await api('/vehiculos');
+    const data = await api('/vehiculos?' + params.toString());
     if (!data.vehiculos?.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay vehículos registrados</td></tr>'; return; }
     tbody.innerHTML = data.vehiculos.map(v => `
       <tr>
@@ -282,8 +287,12 @@ async function guardarVehiculo(id) {
 async function cargarPedidos() {
   const tbody = document.querySelector('#tbl-pedidos tbody');
   const estado = document.getElementById('filtro-pedidos').value;
+  const q = document.getElementById('filtro-pedidos-q').value.trim();
+  const params = new URLSearchParams();
+  if (estado) params.set('estado', estado);
+  if (q) params.set('q', q);
   try {
-    const data = await api('/pedidos' + (estado ? '?estado=' + estado : ''));
+    const data = await api('/pedidos?' + params.toString());
     if (!data.pedidos?.length) { tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted" style="padding:32px;">No hay pedidos</td></tr>'; return; }
     tbody.innerHTML = data.pedidos.map(p => `
       <tr>

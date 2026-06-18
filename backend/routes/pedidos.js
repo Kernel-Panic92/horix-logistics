@@ -5,12 +5,24 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const { fecha, estado } = req.query;
+    const { fecha, estado, q } = req.query;
     let sql = 'SELECT p.*, c.nombre AS cliente_nombre_real FROM logistics.pedidos_logistica p LEFT JOIN logistics.clientes c ON c.id = p.cliente_id WHERE 1=1';
     const params = [];
-    if (fecha) { params.push(fecha); sql += ` AND DATE(created_at)=$${params.length}`; }
-    if (estado) { params.push(estado); sql += ` AND estado=$${params.length}`; }
-    sql += ' ORDER BY id';
+    let idx = 1;
+    if (fecha) { params.push(fecha); sql += ` AND DATE(p.created_at)=$${idx++}`; }
+    if (estado) { params.push(estado); sql += ` AND p.estado=$${idx++}`; }
+    if (q) {
+      params.push('%' + q + '%');
+      sql += ` AND (p.numero_factura ILIKE $${idx}
+               OR p.cliente_nombre ILIKE $${idx}
+               OR c.nombre ILIKE $${idx}
+               OR p.direccion ILIKE $${idx}
+               OR p.ciudad ILIKE $${idx}
+               OR p.placa ILIKE $${idx}
+               OR p.conductor ILIKE $${idx})`;
+      idx++;
+    }
+    sql += ' ORDER BY p.id';
     const result = await pool.query(sql, params);
     res.json({ exitosa: true, total: result.rows.length, pedidos: result.rows });
   } catch (err) {

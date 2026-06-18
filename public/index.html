@@ -316,7 +316,19 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
       <div class="page" id="page-vehiculos">
         <div class="page-header flex" style="justify-content:space-between;align-items:center;">
           <div><h3>Vehículos</h3><p>Gestión de flota disponible</p></div>
-          <div class="flex gap-sm">
+          <div class="flex gap-sm" style="flex-wrap:wrap;">
+            <div style="position:relative;min-width:160px;">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
+              <input type="text" id="filtro-vehiculos-q" placeholder="Buscar placa, alias..."
+                     oninput="cargarVehiculos()"
+                     style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+            </div>
+            <select id="filtro-vehiculos-estado" onchange="cargarVehiculos()" style="width:auto;">
+              <option value="">Todos</option>
+              <option value="disponible">Disponible</option>
+              <option value="en_ruta">En ruta</option>
+              <option value="mantenimiento">Mantenimiento</option>
+            </select>
             <button class="btn btn-danger btn-sm" id="btn-del-vehiculo" style="display:none" onclick="eliminarSeleccionados('vehiculo')">🗑️ Eliminar</button>
             <button class="btn btn-primary btn-sm" onclick="abrirModalVehiculo()">+ Nuevo</button>
           </div>
@@ -346,7 +358,13 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
       <div class="page" id="page-pedidos">
         <div class="page-header flex" style="justify-content:space-between;align-items:center;">
           <div><h3>Pedidos</h3><p>Órdenes de entrega pendientes y asignadas</p></div>
-          <div class="flex gap-sm">
+          <div class="flex gap-sm" style="flex-wrap:wrap;">
+            <div style="position:relative;min-width:180px;">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
+              <input type="text" id="filtro-pedidos-q" placeholder="Buscar factura, cliente, placa..."
+                     oninput="cargarPedidos()"
+                     style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+            </div>
             <select id="filtro-pedidos" onchange="cargarPedidos()" style="width:auto;">
               <option value="">Todos</option>
               <option value="pendiente">Pendientes</option>

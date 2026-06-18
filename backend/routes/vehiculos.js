@@ -5,7 +5,18 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM logistics.vehiculos ORDER BY id');
+    const { q, estado } = req.query;
+    let sql = 'SELECT * FROM logistics.vehiculos WHERE 1=1';
+    const params = [];
+    let idx = 1;
+    if (estado) { params.push(estado); sql += ` AND estado=$${idx++}`; }
+    if (q) {
+      params.push('%' + q + '%');
+      sql += ` AND (placa ILIKE $${idx} OR alias ILIKE $${idx} OR sede ILIKE $${idx})`;
+      idx++;
+    }
+    sql += ' ORDER BY id';
+    const result = await pool.query(sql, params);
     res.json({ exitosa: true, total: result.rows.length, vehiculos: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
