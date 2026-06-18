@@ -139,6 +139,16 @@ export async function parsearPdfSiesa(rutaArchivo) {
     }
 
     debug.fevEncontrados = fevLines.length;
+    debug.fevs = fevLines.map(f => ({
+      idx: f.lineIndex,
+      fev: f.fevNumber,
+      cliente: f.cliente,
+      valor: f.valor,
+      ciudad: f.ciudad,
+      direccion: f.direccion,
+      telefono: f.telefono,
+    }));
+    debug.rawText = lineas.slice(0, 80).join('\n');
     return {
       exitosa: true,
       ...meta,

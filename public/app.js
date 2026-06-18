@@ -634,15 +634,17 @@ async function importarSiesa() {
       ${data.clientesNuevos ? '<br>👤 ' + data.clientesNuevos + ' clientes nuevos' : ''}
       ${data.clientesActualizados ? '<br>🔄 ' + data.clientesActualizados + ' clientes actualizados' : ''}
     </div>`;
-    if (data.importados === 0 && data.debug) {
+    if (data.debug) {
       const d = data.debug;
-      html += `<div style="margin-top:8px;padding:10px;background:var(--surface2);border-radius:8px;font-size:11px;font-family:monospace;color:var(--muted);max-height:300px;overflow:auto;white-space:pre-wrap">
-<strong style="color:var(--danger)">🔍 0 pedidos — debug:</strong>
-Header: ${esc(JSON.stringify(d.headerLine))} (línea ${d.headerIndex})
-Fallback usado: ${d.fallbackUsed ? 'sí' : 'no'}
-Primeras líneas del PDF:
-${d.sampleLines?.slice(0, 20).map((l, i) => `${i}: ${esc(l)}`).join('\n') || '—'}
-      </div>`;
+      const fevsHtml = d.fevs?.map(f => `${esc(f.fev)} | valor:${f.valor} | cliente:${esc(f.cliente)} | ciudad:${esc(f.ciudad)} | dir:${esc(f.direccion)} | tel:${f.telefono}`).join('\n') || '—';
+      html += `<details style="margin-top:8px;background:var(--surface2);border-radius:8px;font-size:11px;font-family:monospace;color:var(--muted);padding:8px;cursor:pointer;">
+        <summary style="font-weight:600;cursor:pointer;">🔍 Debug (${d.fevEncontrados || 0} FEVs)</summary>
+        <div style="margin-top:6px;max-height:300px;overflow:auto;white-space:pre-wrap">
+Fallback: ${d.fallbackUsed ? 'sí' : 'no'}
+${fevsHtml ? '── FEVs ──\n' + fevsHtml + '\n' : ''}── RAW primeras líneas ──
+${d.rawText ? esc(d.rawText).split('\n').slice(0,40).map((l,i) => `${i}: ${l}`).join('\n') : '—'}
+        </div>
+      </details>`;
     }
     resEl.innerHTML = html;
     input.value = ''; document.getElementById('file-siesa-name').style.display = 'none';
