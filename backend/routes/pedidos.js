@@ -6,7 +6,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { fecha, estado } = req.query;
-    let sql = 'SELECT * FROM logistics.pedidos_logistica WHERE 1=1';
+    let sql = 'SELECT p.*, c.nombre AS cliente_nombre_real FROM logistics.pedidos_logistica p LEFT JOIN logistics.clientes c ON c.id = p.cliente_id WHERE 1=1';
     const params = [];
     if (fecha) { params.push(fecha); sql += ` AND DATE(created_at)=$${params.length}`; }
     if (estado) { params.push(estado); sql += ` AND estado=$${params.length}`; }
@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 router.get('/pendientes/lista', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT * FROM logistics.pedidos_logistica WHERE estado='pendiente' AND ruta_id IS NULL ORDER BY id`
+      `SELECT p.*, c.nombre AS cliente_nombre_real FROM logistics.pedidos_logistica p LEFT JOIN logistics.clientes c ON c.id = p.cliente_id WHERE p.estado='pendiente' AND p.ruta_id IS NULL ORDER BY p.id`
     );
     res.json({ exitosa: true, total: result.rows.length, pedidos: result.rows });
   } catch (err) {

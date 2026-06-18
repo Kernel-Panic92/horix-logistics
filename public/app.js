@@ -289,7 +289,7 @@ async function cargarPedidos() {
       <tr>
         <td><input type="checkbox" class="cb-pedido" value="${p.id}" onchange="actualizarBtnEliminar('pedido')"></td>
         <td><strong>${p.numero_factura}</strong></td>
-        <td class="truncate">${p.cliente_nombre || '—'}</td>
+        <td class="truncate">${esc(p.cliente_nombre_real) || esc(p.cliente_nombre) || '—'}</td>
         <td class="truncate">${p.direccion || '—'}</td>
         <td>$${(p.valor_credito||0).toLocaleString()}</td>
         <td><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></td>
@@ -340,9 +340,10 @@ async function cargarClientes() {
     }
     count.textContent = data.clientes.length + ' cliente' + (data.clientes.length !== 1 ? 's' : '');
     grid.innerHTML = data.clientes.map(c => {
-      const iniciales = (c.nombre || '').split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+      const nombre = c.nombre || '';
+      const iniciales = nombre.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
       let hue = 0;
-      for (let i = 0; i < c.nombre.length; i++) hue = c.nombre.charCodeAt(i) + ((hue << 5) - hue);
+      for (let i = 0; i < nombre.length; i++) hue = nombre.charCodeAt(i) + ((hue << 5) - hue);
       const bg = `hsl(${Math.abs(hue) % 360}, 60%, 45%)`;
       return `<div class="cli-card">
         <div class="cli-card-head">
