@@ -623,7 +623,7 @@ ${d.sampleLines?.slice(0, 20).map((l, i) => `${i}: ${esc(l)}`).join('\n') || '�
   } catch (e) {
     resEl.innerHTML = `<div style="padding:10px;background:rgba(247,97,79,.1);border-radius:8px;color:var(--danger);font-size:13px;">❌ ${e.message}</div>`;
   } finally {
-    btn.disabled = false; btn.textContent = 'Importar SIESA';
+    btn.disabled = false; btn.textContent = 'Importar';
   }
 }
 
@@ -647,7 +647,7 @@ async function importarWidetech() {
   } catch (e) {
     resEl.innerHTML = `<div style="padding:10px;background:rgba(247,97,79,.1);border-radius:8px;color:var(--danger);font-size:13px;">❌ ${e.message}</div>`;
   } finally {
-    btn.disabled = false; btn.textContent = 'Importar Widetech';
+    btn.disabled = false; btn.textContent = 'Importar';
   }
 }
 

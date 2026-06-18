@@ -48,14 +48,47 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
     const errores = [];
 
     async function buscarOCrearCliente(pedido) {
-      const nombre = (pedido.clienteNombre || pedido.clienteDir || '').trim();
+      const nombre = limpiarNombreCliente(pedido.clienteNombre || pedido.clienteDir || '');
       if (!nombre) return null;
 
-      const normalized = nombre.toLowerCase().replace(/\s+/g, ' ');
-      const existente = await pool.query('SELECT * FROM logistics.clientes WHERE LOWER(nombre)=$1', [normalized]);
+      // 1) Buscar por teléfono (más confiable ante cambios de formato)
+      if (pedido.telefono) {
+        const porTel = await pool.query(
+          `SELECT * FROM logistics.clientes WHERE telefono=$1 ORDER BY updated_at DESC LIMIT 1`,
+          [pedido.telefono]
+        );
+        if (porTel.rows.length > 0) {
+          const cl = porTel.rows[0];
+          await pool.query(
+            `UPDATE logistics.clientes SET nombre=$1, direccion=$2, ciudad=$3, telefono=$4, ultima_importacion=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=$5`,
+            [nombre, pedido.direccion || cl.direccion, pedido.ciudad || cl.ciudad, pedido.telefono || cl.telefono, cl.id]
+          );
+          clientesActualizados++;
+          return { ...cl, nombre };
+        }
+      }
 
-      if (existente.rows.length > 0) {
-        const cl = existente.rows[0];
+      const normalized = nombre.toLowerCase().replace(/\s+/g, ' ');
+
+      // 2) Fuzzy match por nombre (pg_trgm — resistente a basura en extracción)
+      const fuzzy = await pool.query(
+        `SELECT *, similarity(LOWER(nombre), $1) AS sim FROM logistics.clientes WHERE similarity(LOWER(nombre), $1) > 0.3 ORDER BY sim DESC LIMIT 1`,
+        [normalized]
+      );
+      if (fuzzy.rows.length > 0) {
+        const cl = fuzzy.rows[0];
+        await pool.query(
+          `UPDATE logistics.clientes SET direccion=$1, ciudad=$2, telefono=COALESCE(NULLIF($3,''), telefono), ultima_importacion=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=$4`,
+          [pedido.direccion || cl.direccion, pedido.ciudad || cl.ciudad, pedido.telefono || cl.telefono, cl.id]
+        );
+        clientesActualizados++;
+        return cl;
+      }
+
+      // 3) Legacy: match exacto
+      const exacto = await pool.query('SELECT * FROM logistics.clientes WHERE LOWER(nombre)=$1', [normalized]);
+      if (exacto.rows.length > 0) {
+        const cl = exacto.rows[0];
         let updateFields = [];
         let values = [];
         let idx = 1;
@@ -77,6 +110,7 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
         return cl;
       }
 
+      // 4) Crear nuevo
       let lat = null, lng = null;
       if (pedido.direccion) {
         const coords = await geocodificar(pedido.direccion, pedido.ciudad || 'Medellín');
@@ -92,6 +126,15 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
       );
       if (nuevo.rows[0]?.created_at === nuevo.rows[0]?.updated_at) clientesNuevos++;
       return nuevo.rows[0];
+    }
+
+    function limpiarNombreCliente(nombre) {
+      if (!nombre) return '';
+      return nombre
+        .replace(/\s+\d[\d\.,]+\s*(FEV[-\s]\d+)?\s*$/i, '')
+        .replace(/\s+FEV[-\s]\d+\s*$/i, '')
+        .replace(/\s+$/, '')
+        .trim();
     }
 
     for (const pedido of resultado.pedidos) {

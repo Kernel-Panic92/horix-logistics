@@ -130,7 +130,7 @@ export async function parsearPdfSiesa(rutaArchivo) {
     for (const fev of fevLines) {
       pedidos.push({
         numeroFactura: fev.fevNumber,
-        clienteNombre: fev.cliente || '',
+        clienteNombre: limpiarNombreCliente(fev.cliente || ''),
         direccion: fev.direccion || '',
         ciudad: fev.ciudad || '',
         telefono: fev.telefono || '',
@@ -164,6 +164,15 @@ function extraerValor(lineaActual, lineaSiguiente) {
     return lineaSiguiente.trim();
   }
   return null;
+}
+
+function limpiarNombreCliente(nombre) {
+  if (!nombre) return '';
+  return nombre
+    .replace(/\s+\d[\d\.,]+\s*(FEV[-\s]\d+)?\s*$/i, '')
+    .replace(/\s+FEV[-\s]\d+\s*$/i, '')
+    .replace(/\s+$/, '')
+    .trim();
 }
 
 function parsearValorColombiano(s) {

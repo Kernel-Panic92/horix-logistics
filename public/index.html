@@ -303,7 +303,7 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
           </div>
         </div>
         <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-widetech-card">
-          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📊 Importar histórico Widetech</summary>
+          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📊 Importar datos GPS</summary>
           <div style="margin-top:12px;cursor:default;">
             <div class="drop-zone" id="drop-widetech" onclick="document.getElementById('file-widetech').click()" style="padding:16px;">
               <div class="icon" style="font-size:24px;">📊</div>
@@ -311,7 +311,7 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
               <div class="filename" id="file-widetech-name"></div>
             </div>
             <input type="file" id="file-widetech" accept=".xlsx,.xls" style="display:none" onchange="previsualizarArchivo(this,'file-widetech-name')">
-            <button class="btn btn-primary" onclick="importarWidetech()" id="btn-import-widetech" style="width:100%;justify-content:center;" disabled>Importar Widetech</button>
+            <button class="btn btn-primary" onclick="importarWidetech()" id="btn-import-widetech" style="width:100%;justify-content:center;" disabled>Importar</button>
             <div id="result-widetech" style="margin-top:10px;"></div>
           </div>
         </details>
@@ -340,7 +340,7 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
           </div>
         </div>
         <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-siesa-card">
-          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📄 Importar planilla SIESA</summary>
+          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📄 Importar planilla de cuadre</summary>
           <div style="margin-top:12px;cursor:default;">
             <div class="drop-zone" id="drop-siesa" onclick="document.getElementById('file-siesa').click()" style="padding:16px;">
               <div class="icon" style="font-size:24px;">📄</div>
@@ -348,7 +348,7 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
               <div class="filename" id="file-siesa-name"></div>
             </div>
             <input type="file" id="file-siesa" accept=".pdf" style="display:none" onchange="previsualizarArchivo(this,'file-siesa-name')">
-            <button class="btn btn-primary" onclick="importarSiesa()" id="btn-import-siesa" style="width:100%;justify-content:center;" disabled>Importar SIESA</button>
+            <button class="btn btn-primary" onclick="importarSiesa()" id="btn-import-siesa" style="width:100%;justify-content:center;" disabled>Importar</button>
             <div id="result-siesa" style="margin-top:10px;"></div>
           </div>
         </details>
@@ -380,7 +380,7 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
       <div class="page" id="page-importar">
         <div class="page-header">
           <h3>Importar datos</h3>
-          <p>Usa los botones en Pedidos (SIESA) o Vehículos (Widetech)</p>
+          <p>Usa los botones en Pedidos (planilla) o Vehículos (datos GPS)</p>
         </div>
       </div>
 
@@ -512,6 +512,6 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
