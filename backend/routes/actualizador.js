@@ -55,13 +55,18 @@ router.get('/status', soloAdmin, async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
+function obtenerRama() {
+  try { return execSync('git branch --show-current', { cwd: APP_DIR }).toString().trim(); } catch { return 'master'; }
+}
+
 router.post('/check', soloAdmin, async (req, res) => {
   try {
+    const branch = obtenerRama();
     logUpdater('Verificando actualizaciones...');
     execSync('git fetch origin --prune', { cwd: APP_DIR, stdio: 'pipe' });
     const currentCommit = execSync('git rev-parse --short HEAD', { cwd: APP_DIR }).toString().trim();
-    const remoteCommit = execSync('git rev-parse --short origin/main 2>/dev/null || git rev-parse --short origin/master 2>/dev/null || echo "-"', { cwd: APP_DIR }).toString().trim();
-    logUpdater(`Local: ${currentCommit} | Remote: ${remoteCommit}`);
+    const remoteCommit = execSync(`git rev-parse --short origin/${branch}`, { cwd: APP_DIR }).toString().trim();
+    logUpdater(`Local: ${currentCommit} | Remote: ${remoteCommit} (rama: ${branch})`);
     const behind = currentCommit !== remoteCommit ? 1 : 0;
     let changes = [];
     if (behind > 0) { logUpdater(`Nueva versión disponible: ${remoteCommit}`); changes = [remoteCommit]; }
@@ -71,9 +76,7 @@ router.post('/check', soloAdmin, async (req, res) => {
 });
 
 router.post('/update', soloAdmin, async (req, res) => {
-  let branch = req.body?.branch || 'main';
-  const allowed = ['main', 'master', 'release'];
-  if (!allowed.includes(branch)) branch = 'main';
+  const branch = obtenerRama();
   try {
     logUpdater('========================================');
     logUpdater('INICIANDO ACTUALIZACION (rama: ' + branch + ')');
