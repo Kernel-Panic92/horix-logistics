@@ -471,6 +471,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           <button class="btn btn-sm btn-secondary" data-cfg="seguridad" onclick="cfgTab='seguridad';rConfig()">🛡️ Seguridad</button>
           <button class="btn btn-sm btn-secondary" data-cfg="auditoria" onclick="cfgTab='auditoria';rConfig()">📋 Auditoría</button>
           <button class="btn btn-sm btn-secondary" data-cfg="actualizar" onclick="cfgTab='actualizar';rConfig()">🚀 Actualizar</button>
+          <button class="btn btn-sm btn-secondary" data-cfg="mapas" onclick="cfgTab='mapas';rConfig()">🗺️ Mapas</button>
         </div>
         <div id="cfg-content">Cargando...</div>
       </div>
@@ -544,6 +545,15 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+var GOOGLE_MAPS_KEY = localStorage.getItem('google_maps_key') || '';
+if (GOOGLE_MAPS_KEY) {
+  var s = document.createElement('script');
+  s.src = 'https://maps.googleapis.com/maps/api/js?key='+GOOGLE_MAPS_KEY+'&libraries=places&callback=iniciarAutocompleteCliente';
+  s.async = true; s.defer = true;
+  document.head.appendChild(s);
+}
+</script>
 <script src="app.js?v=20240618"></script>
 </body>
 </html>

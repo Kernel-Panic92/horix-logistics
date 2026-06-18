@@ -430,7 +430,7 @@ function abrirModalCliente(data) {
     `
       <div class="form-grid">
         <div class="form-group"><label>Nombre *</label><input id="c-nombre" value="${d.nombre||''}" placeholder="Nombre del cliente"></div>
-        <div class="form-group"><label>Dirección</label><input id="c-direccion" value="${d.direccion||''}" placeholder="Calle 123 #45-67"></div>
+        <div class="form-group"><label>Dirección</label><input id="c-direccion" value="${d.direccion||''}" placeholder="Busca y selecciona una dirección..." autocomplete="off"></div>
         <div class="form-group"><label>Ciudad</label><input id="c-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
         <div class="form-group"><label>Teléfono</label><input id="c-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
         <div class="form-group"><label>Latitud</label><input type="number" step="any" id="c-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
@@ -440,6 +440,7 @@ function abrirModalCliente(data) {
     `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
      <button class="btn btn-primary" onclick="${data ? 'guardarCliente('+d.id+')' : 'guardarCliente()'}">${data ? 'Guardar cambios' : 'Crear cliente'}</button>`
   );
+  setTimeout(configurarAutocompleteCliente, 300);
 }
 
 function editarCliente(id) {
@@ -768,6 +769,7 @@ async function rConfig() {
     else if (cfgTab === 'seguridad') renderSeguridad(el, c);
     else if (cfgTab === 'auditoria') renderAuditoria(el);
     else if (cfgTab === 'actualizar') renderActualizar(el);
+    else if (cfgTab === 'mapas') renderMapas(el);
   } catch { el.innerHTML = '<p class="text-muted">Error al cargar configuración</p>'; }
 }
 
@@ -1282,6 +1284,47 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+/* ── Google Places Autocomplete para clientes ── */
+window.iniciarAutocompleteCliente = function() {
+  window.googleMapsListo = true;
+};
+
+function configurarAutocompleteCliente() {
+  if (typeof google === 'undefined' || !window.googleMapsListo) {
+    const input = document.getElementById('c-direccion');
+    if (input && !input._aviso) {
+      input._aviso = true;
+      input.placeholder = '🔑 Configura API Key en Ajustes → Mapas';
+      input.title = 'Ve a Configuración → Mapas para ingresar tu API key de Google Maps';
+    }
+    return;
+  }
+  const input = document.getElementById('c-direccion');
+  if (!input || input._autocomplete) return;
+
+  const ac = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'co' },
+    fields: ['address_components', 'formatted_address', 'geometry', 'name']
+  });
+  input._autocomplete = true;
+
+  ac.addListener('place_changed', () => {
+    const place = ac.getPlace();
+    if (!place.geometry) return;
+    document.getElementById('c-lat').value = place.geometry.location.lat();
+    document.getElementById('c-lng').value = place.geometry.location.lng();
+    for (const comp of place.address_components || []) {
+      if (comp.types.includes('locality') || comp.types.includes('administrative_area_level_2')) {
+        document.getElementById('c-ciudad').value = comp.long_name;
+        break;
+      } else if (comp.types.includes('administrative_area_level_1')) {
+        document.getElementById('c-ciudad').value = comp.long_name;
+      }
+    }
+    if (place.formatted_address) input.value = place.formatted_address;
+  });
+}
+
 /* ── Mapa ── */
 let mapInstance = null;
 let mapLayers = { rutas: [], vehiculos: [], paradas: [] };
@@ -1370,6 +1413,51 @@ function filtrarMapaRuta() {
     if (!id) { m.setStyle({ opacity: 1 }); m.closeTooltip?.(); }
     else { m.setStyle({ opacity: m.rutaId == id ? 1 : 0.2 }); }
   });
+}
+
+/* ── Mapas Tab (Config) ── */
+function renderMapas(el) {
+  const key = localStorage.getItem('google_maps_key') || '';
+  el.innerHTML = `
+    <div class="card" style="max-width:600px;">
+      <h4 style="margin-bottom:16px;font-family:var(--font-head);">🗺️ Google Maps API Key</h4>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Necesitas una clave de API de Google Maps con la biblioteca "Places" habilitada.
+        <br><a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent)">Obtener API Key →</a>
+      </p>
+      <div class="form-group">
+        <label>API Key</label>
+        <input id="cfg-gmaps-key" value="${esc(key)}" placeholder="AIzaSy..." style="font-family:monospace;">
+      </div>
+      <div class="flex">
+        <button class="btn btn-primary" onclick="guardarGmapsKey()">✓ Guardar</button>
+        <button class="btn btn-secondary" onclick="probarGmapsKey()">🧪 Probar</button>
+      </div>
+      <div id="gmaps-msg" style="margin-top:10px;font-size:13px;"></div>
+    </div>`;
+}
+
+function guardarGmapsKey() {
+  const key = document.getElementById('cfg-gmaps-key').value.trim();
+  const msg = document.getElementById('gmaps-msg');
+  if (!key) { msg.innerHTML = '<span style="color:var(--danger)">✗ Ingresa una API key</span>'; return; }
+  localStorage.setItem('google_maps_key', key);
+  msg.innerHTML = '<span style="color:var(--success)">✓ Guardada en localStorage. Recarga la página para aplicar.</span>';
+}
+
+function probarGmapsKey() {
+  const key = document.getElementById('cfg-gmaps-key').value.trim();
+  const msg = document.getElementById('gmaps-msg');
+  if (!key) { msg.innerHTML = '<span style="color:var(--danger)">✗ Ingresa una API key primero</span>'; return; }
+  msg.innerHTML = '<span class="text-muted">Probando...</span>';
+  fetch('https://maps.googleapis.com/maps/api/geocode/json?address=Medellin&key=' + key)
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === 'OK') msg.innerHTML = '<span style="color:var(--success)">✓ API key válida</span>';
+      else if (d.status === 'REQUEST_DENIED') msg.innerHTML = '<span style="color:var(--danger)">✗ API key denegada — habilita Geocoding API y Places API</span>';
+      else msg.innerHTML = '<span style="color:var(--danger)">✗ Error: ' + d.status + '</span>';
+    })
+    .catch(e => msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>');
 }
 
 init();
