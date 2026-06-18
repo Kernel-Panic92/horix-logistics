@@ -147,12 +147,27 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
           const coords = await geocodificar(pedido.direccion, pedido.ciudad || 'Medellín');
           if (coords) { lat = coords.lat; lng = coords.lng; geocodificados++; }
         }
+        // Auto-crear vehículo si la placa vino en el PDF y no existe
+        let vehiculoId = null;
+        if (pedido.placa) {
+          const veh = await pool.query('SELECT id FROM logistics.vehiculos WHERE placa=$1', [pedido.placa]);
+          if (veh.rows.length > 0) {
+            vehiculoId = veh.rows[0].id;
+          } else {
+            const nuevo = await pool.query(
+              `INSERT INTO logistics.vehiculos (placa, alias, estado) VALUES ($1,$2,'disponible') ON CONFLICT (placa) DO UPDATE SET alias=EXCLUDED.alias RETURNING id`,
+              [pedido.placa, 'Importado SIESA']
+            );
+            vehiculoId = nuevo.rows[0].id;
+          }
+        }
         await pool.query(
-          `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, latitud, longitud, valor_credito, estado)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pendiente')
+          `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, latitud, longitud, valor_credito, valor_contado, conductor, placa, nro_guia, estado)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pendiente')
            ON CONFLICT (numero_factura) DO NOTHING`,
           [pedido.numeroFactura, cliente?.id || null, cliente?.nombre || pedido.clienteNombre || pedido.clienteDir,
-           pedido.direccion || '', pedido.ciudad || '', pedido.telefono || '', lat, lng, pedido.valor || 0]
+           pedido.direccion || '', pedido.ciudad || '', pedido.telefono || '', lat, lng,
+           pedido.valor || 0, pedido.valorContado || 0, pedido.conductor || '', pedido.placa || '', pedido.nroGuia || '']
         );
         importados++;
       } catch (e) {

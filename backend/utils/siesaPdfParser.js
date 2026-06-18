@@ -39,6 +39,7 @@ export async function parsearPdfSiesa(rutaArchivo) {
       // Captura 1 o 2 valores antes de FEV
       const match = l.match(/(\d[\d\.]*,\d{2})(?:\s+(\d[\d\.]*,\d{2}))?\s+FEV[-\s]?(\d+)/i);
       if (!match) continue;
+      const valorContado = match[1];
       const valorCredito = match[2] || match[1];
       const fevNum = match[3];
       // Cliente está en la línea ANTERIOR (si no empieza con dígito de valor)
@@ -53,6 +54,7 @@ export async function parsearPdfSiesa(rutaArchivo) {
         lineIndex: i,
         fevNumber: 'FEV-' + fevNum,
         valor: parsearValorColombiano(valorCredito),
+        valorContado: parsearValorColombiano(valorContado),
         cliente: clienteLine,
         ciudad: '', direccion: '', telefono: ''
       });
@@ -72,10 +74,12 @@ export async function parsearPdfSiesa(rutaArchivo) {
             clienteLine = prev;
           }
         }
+        const v = parsearValorColombiano(match[1]);
         fevMatches.push({
           lineIndex: i,
           fevNumber: 'FEV-' + match[2],
-          valor: parsearValorColombiano(match[1]),
+          valor: v,
+          valorContado: v,
           cliente: clienteLine,
           ciudad: '', direccion: '', telefono: ''
         });
@@ -106,7 +110,11 @@ export async function parsearPdfSiesa(rutaArchivo) {
         direccion: fev.direccion || '',
         ciudad: fev.ciudad || '',
         telefono: fev.telefono || '',
-        valor: fev.valor || 0
+        valor: fev.valor || 0,
+        valorContado: fev.valorContado || 0,
+        conductor: meta.conductor || '',
+        placa: meta.placa || '',
+        nroGuia: meta.nroGuia || ''
       });
     }
 
@@ -116,6 +124,7 @@ export async function parsearPdfSiesa(rutaArchivo) {
       fev: f.fevNumber,
       cliente: f.cliente,
       valor: f.valor,
+      valorContado: f.valorContado,
       ciudad: f.ciudad,
       direccion: f.direccion,
       telefono: f.telefono,

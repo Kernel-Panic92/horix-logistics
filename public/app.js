@@ -284,14 +284,16 @@ async function cargarPedidos() {
   const estado = document.getElementById('filtro-pedidos').value;
   try {
     const data = await api('/pedidos' + (estado ? '?estado=' + estado : ''));
-    if (!data.pedidos?.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay pedidos</td></tr>'; return; }
+    if (!data.pedidos?.length) { tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted" style="padding:32px;">No hay pedidos</td></tr>'; return; }
     tbody.innerHTML = data.pedidos.map(p => `
       <tr>
         <td><input type="checkbox" class="cb-pedido" value="${p.id}" onchange="actualizarBtnEliminar('pedido')"></td>
         <td><strong>${p.numero_factura}</strong></td>
         <td class="truncate">${esc(p.cliente_nombre_real) || esc(p.cliente_nombre) || '—'}</td>
         <td class="truncate">${p.direccion || '—'}</td>
-        <td>$${(p.valor_credito||0).toLocaleString()}</td>
+        <td style="white-space:nowrap">$${(p.valor_contado||0).toLocaleString()}</td>
+        <td style="white-space:nowrap">$${(p.valor_credito||0).toLocaleString()}</td>
+        <td>${p.placa || '—'}</td>
         <td><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></td>
         <td>${p.ruta_id ? 'Ruta #'+p.ruta_id : '—'}</td>
         <td><button class="btn btn-sm btn-secondary" onclick="verPedido(${p.id})" title="Ver">👁️</button> <button class="btn btn-sm btn-secondary" onclick="editarPedido(${p.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('pedido',${p.id},'${p.numero_factura}')" title="Eliminar">🗑️</button></td>
@@ -313,7 +315,11 @@ async function verPedido(id) {
         <div><strong>Dirección:</strong><br>${p.direccion || '—'}</div>
         <div><strong>Ciudad:</strong><br>${p.ciudad || '—'}</div>
         <div><strong>Teléfono:</strong><br>${p.telefono || '—'}</div>
-        <div><strong>Valor crédito:</strong><br>$${(p.valor_credito||0).toLocaleString()}</div>
+        <div><strong>V. Contado:</strong><br>$${(p.valor_contado||0).toLocaleString()}</div>
+        <div><strong>V. Crédito:</strong><br>$${(p.valor_credito||0).toLocaleString()}</div>
+        <div><strong>Conductor:</strong><br>${p.conductor || '—'}</div>
+        <div><strong>Placa:</strong><br>${p.placa || '—'}</div>
+        <div><strong>Nro Guía:</strong><br>${p.nro_guia || '—'}</div>
         <div><strong>Estado:</strong><br><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></div>
         <div><strong>Ruta:</strong><br>${p.ruta_id ? 'Ruta #'+p.ruta_id : 'Sin asignar'}</div>
         <div><strong>Latitud:</strong><br>${p.latitud || '—'}</div>
