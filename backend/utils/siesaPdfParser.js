@@ -1,6 +1,8 @@
 import pdfParse from 'pdf-parse';
 import fs from 'fs';
 
+const CIUDADES_CONOCIDAS = ['santa bárbara', 'santa barbara', 'la pintada', 'el jardín', 'el jardin'];
+
 export async function parsearPdfSiesa(rutaArchivo) {
   try {
     const dataBuffer = fs.readFileSync(rutaArchivo);
@@ -10,9 +12,9 @@ export async function parsearPdfSiesa(rutaArchivo) {
 
     const meta = { conductor: null, placa: null, nroGuia: null, fecha: null };
     const pedidos = [];
-    const debug = { sampleLines: lineas.slice(0, 50) };
+    const debug = { sampleLines: lineas.slice(0, 20) };
 
-    // 1. Extraer metadata de TODAS las líneas
+    // 1. Metadata
     for (let i = 0; i < lineas.length; i++) {
       const l = lineas[i];
       const sig = i + 1 < lineas.length ? lineas[i + 1] : null;
@@ -21,92 +23,107 @@ export async function parsearPdfSiesa(rutaArchivo) {
       if (/conductor/i.test(l) && !meta.conductor) meta.conductor = extraerValor(l, sig);
       if (/placa/i.test(l) && !/alias/i.test(l) && !meta.placa) meta.placa = extraerValor(l, sig);
       if (/(nro\.?\s*guia|guía)/i.test(l) && !meta.nroGuia) meta.nroGuia = extraerValor(l, sig);
-
-      if (/fecha/i.test(l) && !/gps/i.test(l) && !meta.fecha) {
-        const f = extraerValor(l, sig);
-        // La fecha puede estar en el mismo renglón: "Fecha: 6/01/2021" o "6/01/2021"
-        if (f) meta.fecha = f;
-      }
-      // CPL number puede estar suelto como "CPL-00006767"
+      if (/fecha/i.test(l) && !/gps/i.test(l) && !meta.fecha) { const f = extraerValor(l, sig); if (f) meta.fecha = f; }
       if (!meta.nroGuia && /^CPL[-]\d+/i.test(l.trim())) meta.nroGuia = l.trim();
     }
 
-    // 2. Buscar líneas con FEV- (están concatenadas al valor, ej: "000,00FEV-00010195")
-    const fevLines = []; // { lineIndex, fevNumber, valor, cliente }
+    // 2. Buscar FEVs con regex que tolera dígitos extra entre valor y FEV
+    //    Formato: "... CLIENTE 999.999,99[digitos extra]FEV-99999"
+    //    Ej:     "CLIENTE 460.072,000,00FEV-00010195"
+    //    → valorRaw = "460.072,00" (último ,dd antes de FEV)
+    const fevLines = [];
     for (let i = 0; i < lineas.length; i++) {
       const l = lineas[i];
-      // Buscar patrón: valor (con puntos y comas) seguido inmediatamente de FEV-99999
-      const match = l.match(/([\d\.]+\,\d{2})FEV[-\s]?(\d+)/i);
+      // Buscar valor + FEV pegados: dígitos,puntoycoma,dígitos,FEV
+      const match = l.match(/(\d[\d\.]*,\d{2})\d*FEV[-\s]?(\d+)/i);
       if (match) {
-        const valorRaw = match[1];       // "460.072,000,00" o "460.072,00"
-        const fevNum = match[2];         // "00010195"
+        const valorRaw = match[1];
+        const fevNum = match[2];
         const before = l.substring(0, match.index).trim();
         fevLines.push({
           lineIndex: i,
           fevNumber: 'FEV-' + fevNum,
           valor: parsearValorColombiano(valorRaw),
           cliente: before,
-          ciudad: '',
-          direccion: '',
-          telefono: ''
+          ciudad: '', direccion: '', telefono: ''
         });
       }
     }
 
-    // 3. Para cada FEV, buscar la línea siguiente con ciudad + dirección + teléfono
+    // 3. Para cada FEV, extraer ciudad + dirección + teléfono de la línea siguiente
     for (const fev of fevLines) {
       const nextIdx = fev.lineIndex + 1;
-      if (nextIdx < lineas.length) {
-        const nextLine = lineas[nextIdx];
-        if (nextLine && !nextLine.startsWith('**') && !/total|documento|conductor|placa|nro\.guia/i.test(nextLine)) {
-          // Extraer ciudad (primera palabra), teléfono (último número de 7+ dígitos)
-          const phoneMatch = nextLine.match(/(\d{7,15})$/);
-          fev.telefono = phoneMatch ? phoneMatch[1] : '';
-          let rest = phoneMatch ? nextLine.substring(0, phoneMatch.index).trim() : nextLine;
+      if (nextIdx >= lineas.length) continue;
+      const nl = lineas[nextIdx];
+      if (!nl || nl.startsWith('**') || /total|documento|conductor|placa|nro\.guia|viene|continúa/i.test(nl)) continue;
 
-          // La primera palabra es la ciudad
-          const parts = rest.split(/\s+/);
-          fev.ciudad = parts[0] || '';
-          fev.direccion = parts.slice(1).join(' ') || '';
+      // Teléfono: último grupo de 7+ dígitos
+      const phoneMatch = nl.match(/(\d{7,15})\s*$/);
+      fev.telefono = phoneMatch ? phoneMatch[1] : '';
+      let resto = phoneMatch ? nl.substring(0, phoneMatch.index).trim() : nl;
+
+      // Ciudad: puede ser 1 o 2 palabras. Probar 2 palabras primero.
+      const partes = resto.split(/\s+/);
+      let ciudad = '';
+      let direccion = resto;
+
+      if (partes.length >= 2) {
+        const dosPalabras = (partes[0] + ' ' + partes[1]).toLowerCase();
+        if (CIUDADES_CONOCIDAS.includes(dosPalabras)) {
+          ciudad = partes[0] + ' ' + partes[1];
+          direccion = partes.slice(2).join(' ');
         }
       }
+      if (!ciudad) {
+        ciudad = partes[0] || '';
+        direccion = partes.slice(1).join(' ') || '';
+      }
+
+      fev.ciudad = ciudad;
+      fev.direccion = direccion;
     }
 
-    // 4. Si no se encontraron FEVs con el método anterior, intentar búsqueda más amplia
+    // 4. Fallback: si no se encontraron FEVs, buscar FEV- en cualquier posición
     if (fevLines.length === 0) {
       debug.fallbackUsed = true;
       for (let i = 0; i < lineas.length; i++) {
         const l = lineas[i];
-        // Buscar FEV- en cualquier posición (sin valor antes)
-        const simpleMatch = l.match(/\bFEV[-\s]?(\d+)\b/i);
-        if (simpleMatch) {
-          const fevNum = simpleMatch[1];
-          const before = l.substring(0, simpleMatch.index).trim();
-          // Intentar extraer valor de lo que está antes
-          const valorMatch = before.match(/([\d\.]+\,[\d\.]+)$/);
-          fevLines.push({
-            lineIndex: i,
-            fevNumber: 'FEV-' + fevNum,
-            valor: valorMatch ? parsearValorColombiano(valorMatch[1]) : 0,
-            cliente: valorMatch ? before.substring(0, before.length - valorMatch[1].length).trim() : before,
-            ciudad: '', direccion: '', telefono: ''
-          });
-        }
+        const idx = l.indexOf('FEV-');
+        if (idx < 0) continue;
+        const fevNum = l.substring(idx + 4).match(/^\d+/);
+        if (!fevNum) continue;
+        const before = l.substring(0, idx).trim();
+        const vMatch = before.match(/(\d[\d\.]*,\d{2})$/);
+        fevLines.push({
+          lineIndex: i,
+          fevNumber: 'FEV-' + fevNum[0],
+          valor: vMatch ? parsearValorColombiano(vMatch[1]) : 0,
+          cliente: vMatch ? before.substring(0, before.length - vMatch[1].length).trim() : before,
+          ciudad: '', direccion: '', telefono: ''
+        });
       }
-      // Re-intentar extraer ciudad/dirección/tel para cada uno
+      // Re-intentar ciudad/dirección/tel
       for (const fev of fevLines) {
         const nextIdx = fev.lineIndex + 1;
-        if (nextIdx < lineas.length) {
-          const nextLine = lineas[nextIdx];
-          if (nextLine && !nextLine.startsWith('**') && !/total|documento|conductor|placa/i.test(nextLine)) {
-            const phoneMatch = nextLine.match(/(\d{7,15})$/);
-            fev.telefono = phoneMatch ? phoneMatch[1] : '';
-            let rest = phoneMatch ? nextLine.substring(0, phoneMatch.index).trim() : nextLine;
-            const parts = rest.split(/\s+/);
-            fev.ciudad = parts[0] || '';
-            fev.direccion = parts.slice(1).join(' ') || '';
+        if (nextIdx >= lineas.length) continue;
+        const nl = lineas[nextIdx];
+        if (!nl || nl.startsWith('**') || /total|documento|conductor|placa|viene|continúa/i.test(nl)) continue;
+        const phoneMatch = nl.match(/(\d{7,15})\s*$/);
+        fev.telefono = phoneMatch ? phoneMatch[1] : '';
+        let resto = phoneMatch ? nl.substring(0, phoneMatch.index).trim() : nl;
+        const partes = resto.split(/\s+/);
+        let ciudad = '';
+        let direccion = resto;
+        if (partes.length >= 2) {
+          const dosPalabras = (partes[0] + ' ' + partes[1]).toLowerCase();
+          if (CIUDADES_CONOCIDAS.includes(dosPalabras)) {
+            ciudad = partes[0] + ' ' + partes[1];
+            direccion = partes.slice(2).join(' ');
           }
         }
+        if (!ciudad) { ciudad = partes[0] || ''; direccion = partes.slice(1).join(' ') || ''; }
+        fev.ciudad = ciudad;
+        fev.direccion = direccion;
       }
     }
 
@@ -136,7 +153,6 @@ export async function parsearPdfSiesa(rutaArchivo) {
 }
 
 function extraerValor(lineaActual, lineaSiguiente) {
-  // Primero intentar con ":" ej: "Conductor : Juan"
   if (lineaActual.includes(':')) {
     const parts = lineaActual.split(':');
     if (parts.length >= 2) {
@@ -144,7 +160,6 @@ function extraerValor(lineaActual, lineaSiguiente) {
       if (v && v.length < 80) return v;
     }
   }
-  // Si no, la línea siguiente puede ser el valor (ej: "Placa :" + "TVD 921" en la sig línea)
   if (lineaSiguiente && lineaSiguiente.length < 80 && !/FEV|total|documento|\*\*/i.test(lineaSiguiente)) {
     return lineaSiguiente.trim();
   }
@@ -153,16 +168,13 @@ function extraerValor(lineaActual, lineaSiguiente) {
 
 function parsearValorColombiano(s) {
   if (!s) return 0;
-  // Formato colombiano: 460.072,00 → 460072.00
-  // También puede ser 460.072,000,00 (miles con punto, decimales con coma)
-  // Normalizar: quitar puntos de miles, reemplazar coma por punto
   let limpio = String(s).trim();
-  // Si tiene múltiples comas, la última es el separador decimal
+  // Formato colombiano: 460.072,00 → 460072.00
   const commaCount = (limpio.match(/,/g) || []).length;
   if (commaCount > 1) {
-    // Ej: "460.072,000,00" → última coma es decimal, las otras son separadores de miles
+    // Múltiples comas: la última es decimal, las otras son separadores de miles
     const lastComma = limpio.lastIndexOf(',');
-    limpio = limpio.substring(0, lastComma).replace(/\./g, '').replace(/,/g, '') + '.' + limpio.substring(lastComma + 1);
+    limpio = limpio.substring(0, lastComma).replace(/\./g, '') + '.' + limpio.substring(lastComma + 1);
   } else if (commaCount === 1) {
     limpio = limpio.replace(/\./g, '').replace(',', '.');
   } else {
