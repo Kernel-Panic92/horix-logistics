@@ -457,7 +457,6 @@ async function importarWidetech() {
   const resEl = document.getElementById('result-widetech');
   if (!input.files?.length) { resEl.innerHTML = '<div style="padding:10px;background:rgba(247,97,79,.1);border-radius:8px;color:var(--danger);font-size:13px;">❌ Selecciona un archivo Excel primero</div>'; return; }
   const btn = document.getElementById('btn-import-widetech');
-  const resEl = document.getElementById('result-widetech');
   btn.disabled = true; btn.textContent = 'Importando...';
   const fd = new FormData();
   fd.append('archivo', input.files[0]);
