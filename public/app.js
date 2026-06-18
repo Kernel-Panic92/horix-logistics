@@ -234,7 +234,7 @@ async function cargarVehiculos() {
         <td>${v.capacidad_peso} kg</td>
         <td>${v.capacidad_volumen} m³</td>
         <td><span class="badge badge-${v.estado==='disponible'?'success':v.estado==='en_ruta'?'warning':'danger'}">${v.estado}</span></td>
-        <td><button class="btn btn-sm btn-secondary" onclick="editarVehiculo(${v.id})">✏️</button></td>
+        <td><button class="btn btn-sm btn-secondary" onclick="editarVehiculo(${v.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('vehiculo',${v.id},'${v.placa}')" title="Eliminar">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -303,7 +303,7 @@ async function cargarPedidos() {
         <td>$${(p.valor_credito||0).toLocaleString()}</td>
         <td><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></td>
         <td>${p.ruta_id ? 'Ruta #'+p.ruta_id : '—'}</td>
-        <td><button class="btn btn-sm btn-secondary" onclick="verPedido(${p.id})">👁️</button></td>
+        <td><button class="btn btn-sm btn-secondary" onclick="verPedido(${p.id})" title="Ver">👁️</button> <button class="btn btn-sm btn-secondary" onclick="editarPedido(${p.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('pedido',${p.id},'${p.numero_factura}')" title="Eliminar">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -340,7 +340,7 @@ async function cargarClientes() {
   const filtro = document.getElementById('filtro-clientes')?.value.trim() || '';
   try {
     const data = await api('/clientes' + (filtro ? '?q=' + encodeURIComponent(filtro) : ''));
-    if (!data.clientes?.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No hay clientes</td></tr>'; return; }
+    if (!data.clientes?.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay clientes</td></tr>'; return; }
     tbody.innerHTML = data.clientes.map(c => `
       <tr>
         <td><strong>${esc(c.nombre)}</strong></td>
@@ -350,11 +350,118 @@ async function cargarClientes() {
         <td style="font-size:12px">${c.latitud ? c.latitud.toFixed(4) + ', ' + c.longitud.toFixed(4) : '—'}</td>
         <td>${c.cantidad_pedidos || 0}</td>
         <td style="font-size:12px">${c.ultima_importacion ? new Date(c.ultima_importacion).toLocaleString('es-CO') : '—'}</td>
+        <td><button class="btn btn-sm btn-secondary" onclick="editarCliente(${c.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('cliente',${c.id},'${esc(c.nombre)}')" title="Eliminar">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Error al cargar</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error al cargar</td></tr>';
   }
+}
+
+/* ── CRUD: Pedidos ── */
+function abrirModalPedido(data) {
+  const d = data || {};
+  abrirModal(
+    data ? 'Editar pedido' : 'Nuevo pedido',
+    data ? 'Actualiza los datos del pedido' : 'Registra un nuevo pedido',
+    `
+      <div class="form-grid">
+        <div class="form-group"><label>Factura *</label><input id="p-factura" value="${d.numero_factura||''}" placeholder="FEV-00001"></div>
+        <div class="form-group"><label>Cliente</label><input id="p-cliente" value="${d.cliente_nombre||''}" placeholder="Nombre del cliente"></div>
+        <div class="form-group"><label>Dirección</label><input id="p-direccion" value="${d.direccion||''}" placeholder="Calle 123 #45-67"></div>
+        <div class="form-group"><label>Ciudad</label><input id="p-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
+        <div class="form-group"><label>Teléfono</label><input id="p-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
+        <div class="form-group"><label>Valor</label><input type="number" id="p-valor" value="${d.valor_credito||0}"></div>
+        <div class="form-group"><label>Estado</label><select id="p-estado">
+          <option value="pendiente" ${(d.estado||'pendiente')==='pendiente'?'selected':''}>Pendiente</option>
+          <option value="asignado" ${d.estado==='asignado'?'selected':''}>Asignado</option>
+          <option value="entregado" ${d.estado==='entregado'?'selected':''}>Entregado</option>
+          <option value="cancelado" ${d.estado==='cancelado'?'selected':''}>Cancelado</option>
+        </select></div>
+      </div>
+    `,
+    `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="${data ? 'guardarPedido('+d.id+')' : 'guardarPedido()'}">${data ? 'Guardar cambios' : 'Crear pedido'}</button>`
+  );
+}
+
+function editarPedido(id) {
+  api('/pedidos/' + id).then(d => abrirModalPedido(d.pedido)).catch(e => alert(e.message));
+}
+
+async function guardarPedido(id) {
+  const body = {
+    numero_factura: document.getElementById('p-factura').value.trim(),
+    cliente_nombre: document.getElementById('p-cliente').value.trim(),
+    direccion: document.getElementById('p-direccion').value.trim(),
+    ciudad: document.getElementById('p-ciudad').value.trim(),
+    telefono: document.getElementById('p-telefono').value.trim(),
+    valor_credito: +document.getElementById('p-valor').value,
+    estado: document.getElementById('p-estado').value
+  };
+  if (!body.numero_factura) { alert('La factura es requerida'); return; }
+  try {
+    if (id) await api('/pedidos/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else await api('/pedidos', { method: 'POST', body: JSON.stringify(body) });
+    cerrarModal();
+    cargarPedidos();
+  } catch (e) { alert(e.message); }
+}
+
+/* ── CRUD: Clientes ── */
+function abrirModalCliente(data) {
+  const d = data || {};
+  abrirModal(
+    data ? 'Editar cliente' : 'Nuevo cliente',
+    data ? 'Actualiza los datos del cliente' : 'Registra un nuevo cliente',
+    `
+      <div class="form-grid">
+        <div class="form-group"><label>Nombre *</label><input id="c-nombre" value="${d.nombre||''}" placeholder="Nombre del cliente"></div>
+        <div class="form-group"><label>Dirección</label><input id="c-direccion" value="${d.direccion||''}" placeholder="Calle 123 #45-67"></div>
+        <div class="form-group"><label>Ciudad</label><input id="c-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
+        <div class="form-group"><label>Teléfono</label><input id="c-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
+        <div class="form-group"><label>Latitud</label><input type="number" step="any" id="c-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
+        <div class="form-group"><label>Longitud</label><input type="number" step="any" id="c-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
+      </div>
+    `,
+    `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="${data ? 'guardarCliente('+d.id+')' : 'guardarCliente()'}">${data ? 'Guardar cambios' : 'Crear cliente'}</button>`
+  );
+}
+
+function editarCliente(id) {
+  api('/clientes/' + id).then(d => abrirModalCliente(d.cliente)).catch(e => alert(e.message));
+}
+
+async function guardarCliente(id) {
+  const body = {
+    nombre: document.getElementById('c-nombre').value.trim(),
+    direccion: document.getElementById('c-direccion').value.trim(),
+    ciudad: document.getElementById('c-ciudad').value.trim(),
+    telefono: document.getElementById('c-telefono').value.trim(),
+    latitud: document.getElementById('c-lat').value ? +document.getElementById('c-lat').value : null,
+    longitud: document.getElementById('c-lng').value ? +document.getElementById('c-lng').value : null
+  };
+  if (!body.nombre) { alert('El nombre es requerido'); return; }
+  try {
+    if (id) await api('/clientes/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else await api('/clientes', { method: 'POST', body: JSON.stringify(body) });
+    cerrarModal();
+    cargarClientes();
+  } catch (e) { alert(e.message); }
+}
+
+/* ── Eliminar (genérico) ── */
+function confirmarEliminar(tipo, id, label) {
+  if (!confirm(`¿Eliminar ${tipo} "${label}"?`)) return;
+  const endpoints = { vehiculo: '/vehiculos/', pedido: '/pedidos/', cliente: '/clientes/' };
+  const ep = endpoints[tipo];
+  if (!ep) return;
+  api(ep + id, { method: 'DELETE' }).then(() => {
+    if (tipo === 'vehiculo') cargarVehiculos();
+    else if (tipo === 'pedido') cargarPedidos();
+    else if (tipo === 'cliente') cargarClientes();
+  }).catch(e => alert(e.message));
 }
 
 /* ── Rutas ── */

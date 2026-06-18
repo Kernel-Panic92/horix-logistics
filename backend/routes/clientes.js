@@ -22,4 +22,65 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.*, (SELECT COUNT(*) FROM logistics.pedidos_logistica p WHERE p.cliente_id=c.id) as cantidad_pedidos
+       FROM logistics.clientes c WHERE c.id=$1`, [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
+    res.json({ cliente: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/', async (req, res) => {
+  try {
+    const { nombre, direccion, ciudad, telefono, latitud, longitud } = req.body;
+    if (!nombre) return res.status(400).json({ error: 'nombre requerido' });
+    const result = await pool.query(
+      `INSERT INTO logistics.clientes (nombre, direccion, ciudad, telefono, latitud, longitud, geocodificado, ultima_importacion)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,CURRENT_TIMESTAMP)
+       ON CONFLICT (nombre) DO UPDATE SET direccion=EXCLUDED.direccion, ciudad=EXCLUDED.ciudad,
+        telefono=EXCLUDED.telefono, latitud=EXCLUDED.latitud, longitud=EXCLUDED.longitud,
+        geocodificado=EXCLUDED.geocodificado, ultima_importacion=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+       RETURNING *`,
+      [nombre, direccion || '', ciudad || '', telefono || '', latitud, longitud, latitud !== null && latitud !== undefined]
+    );
+    res.status(201).json({ cliente: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const { nombre, direccion, ciudad, telefono, latitud, longitud } = req.body;
+    const result = await pool.query(
+      `UPDATE logistics.clientes SET
+        nombre=COALESCE($1,nombre), direccion=COALESCE($2,direccion),
+        ciudad=COALESCE($3,ciudad), telefono=COALESCE($4,telefono),
+        latitud=COALESCE($5,latitud), longitud=COALESCE($6,longitud),
+        geocodificado=CASE WHEN $5 IS NOT NULL AND $6 IS NOT NULL THEN TRUE ELSE geocodificado END,
+        updated_at=CURRENT_TIMESTAMP
+       WHERE id=$7 RETURNING *`,
+      [nombre, direccion, ciudad, telefono, latitud, longitud, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
+    res.json({ cliente: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM logistics.clientes WHERE id=$1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
+    res.json({ mensaje: 'Cliente eliminado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
