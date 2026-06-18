@@ -429,9 +429,20 @@ async function importarSiesa() {
     const res = await fetch(API + '/importadores/siesa', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    resEl.innerHTML = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
+    let html = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
       ✅ ${data.importados} pedidos importados${data.fallidos ? ', ' + data.fallidos + ' fallidos' : ''}
     </div>`;
+    if (data.importados === 0 && data.debug) {
+      const d = data.debug;
+      html += `<div style="margin-top:8px;padding:10px;background:var(--surface2);border-radius:8px;font-size:11px;font-family:monospace;color:var(--muted);max-height:300px;overflow:auto;white-space:pre-wrap">
+<strong style="color:var(--danger)">🔍 0 pedidos — debug:</strong>
+Header: ${esc(JSON.stringify(d.headerLine))} (línea ${d.headerIndex})
+Fallback usado: ${d.fallbackUsed ? 'sí' : 'no'}
+Primeras líneas del PDF:
+${d.sampleLines?.slice(0, 20).map((l, i) => `${i}: ${esc(l)}`).join('\n') || '—'}
+      </div>`;
+    }
+    resEl.innerHTML = html;
     input.value = ''; document.getElementById('file-siesa-name').style.display = 'none';
     cargarDashboard();
   } catch (e) {

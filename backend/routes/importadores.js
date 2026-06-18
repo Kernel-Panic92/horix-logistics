@@ -79,7 +79,8 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
       totalPedidos: resultado.totalPedidos,
       importados, fallidos, geocodificados,
       conductor: resultado.conductor,
-      placa: resultado.placa
+      placa: resultado.placa,
+      debug: resultado._debug || null
     });
   } catch (err) {
     if (req.file) fs.unlink(req.file.path, () => {});
