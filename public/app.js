@@ -120,6 +120,7 @@ function navigate(page) {
   else if (page === 'usuarios') cargarUsuarios();
   else if (page === 'config') cargarConfig();
   else if (page === 'mapa') cargarMapa();
+  else if (page === 'clientes') cargarClientes();
 }
 
 /* ── Init ── */
@@ -333,6 +334,29 @@ async function verPedido(id) {
   } catch (e) { alert('Error: ' + e.message); }
 }
 
+/* ── Clientes ── */
+async function cargarClientes() {
+  const tbody = document.querySelector('#tbl-clientes tbody');
+  const filtro = document.getElementById('filtro-clientes')?.value.trim() || '';
+  try {
+    const data = await api('/clientes' + (filtro ? '?q=' + encodeURIComponent(filtro) : ''));
+    if (!data.clientes?.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No hay clientes</td></tr>'; return; }
+    tbody.innerHTML = data.clientes.map(c => `
+      <tr>
+        <td><strong>${esc(c.nombre)}</strong></td>
+        <td class="truncate" style="max-width:200px">${esc(c.direccion || '—')}</td>
+        <td>${esc(c.ciudad || '—')}</td>
+        <td>${esc(c.telefono || '—')}</td>
+        <td style="font-size:12px">${c.latitud ? c.latitud.toFixed(4) + ', ' + c.longitud.toFixed(4) : '—'}</td>
+        <td>${c.cantidad_pedidos || 0}</td>
+        <td style="font-size:12px">${c.ultima_importacion ? new Date(c.ultima_importacion).toLocaleString('es-CO') : '—'}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Error al cargar</td></tr>';
+  }
+}
+
 /* ── Rutas ── */
 async function cargarRutas() {
   const tbody = document.querySelector('#tbl-rutas tbody');
@@ -455,6 +479,8 @@ async function importarSiesa() {
     if (!res.ok) throw new Error(data.error);
     let html = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
       ✅ ${data.importados} pedidos importados${data.fallidos ? ', ' + data.fallidos + ' fallidos' : ''}
+      ${data.clientesNuevos ? '<br>👤 ' + data.clientesNuevos + ' clientes nuevos' : ''}
+      ${data.clientesActualizados ? '<br>🔄 ' + data.clientesActualizados + ' clientes actualizados' : ''}
     </div>`;
     if (data.importados === 0 && data.debug) {
       const d = data.debug;

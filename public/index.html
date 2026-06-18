@@ -240,6 +240,9 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
       <div class="nav-item" data-page="pedidos" onclick="navigate('pedidos')">
         <span class="icon">📦</span> Pedidos
       </div>
+      <div class="nav-item" data-page="clientes" onclick="navigate('clientes')">
+        <span class="icon">👤</span> Clientes
+      </div>
       <div class="nav-item" data-page="rutas" onclick="navigate('rutas')">
         <span class="icon">🗺️</span> Rutas
       </div>
@@ -377,6 +380,17 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
         </div>
       </div>
 
+      <!-- Clientes -->
+      <div class="page" id="page-clientes">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>Clientes</h3><p>Gestión de clientes importados</p></div>
+          <div><input type="text" id="filtro-clientes" placeholder="Buscar cliente..." oninput="cargarClientes()" style="width:220px;"></div>
+        </div>
+        <div class="table-wrap">
+          <table id="tbl-clientes" class="table"><thead><tr><th>Nombre</th><th>Dirección</th><th>Ciudad</th><th>Teléfono</th><th>Coordenadas</th><th>Pedidos</th><th>Última importación</th></tr></thead><tbody><tr><td colspan="7" class="text-center text-muted" style="padding:32px;">Cargando...</td></tr></tbody></table>
+        </div>
+      </div>
+
       <!-- Mapa -->
       <div class="page" id="page-mapa">
         <div class="page-header flex" style="justify-content:space-between;align-items:center;">
@@ -490,6 +504,6 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

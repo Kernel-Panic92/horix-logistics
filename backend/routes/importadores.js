@@ -43,20 +43,73 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
     let importados = 0;
     let fallidos = 0;
     let geocodificados = 0;
+    let clientesNuevos = 0;
+    let clientesActualizados = 0;
     const errores = [];
+
+    async function buscarOCrearCliente(pedido) {
+      const nombre = (pedido.clienteNombre || pedido.clienteDir || '').trim();
+      if (!nombre) return null;
+
+      const normalized = nombre.toLowerCase().replace(/\s+/g, ' ');
+      const existente = await pool.query('SELECT * FROM logistics.clientes WHERE LOWER(nombre)=$1', [normalized]);
+
+      if (existente.rows.length > 0) {
+        const cl = existente.rows[0];
+        let updateFields = [];
+        let values = [];
+        let idx = 1;
+
+        if (pedido.direccion && pedido.direccion !== cl.direccion) {
+          updateFields.push(`direccion=$${idx++}`); values.push(pedido.direccion);
+          updateFields.push(`geocodificado=false`);
+        }
+        if (pedido.ciudad && pedido.ciudad !== cl.ciudad) { updateFields.push(`ciudad=$${idx++}`); values.push(pedido.ciudad); }
+        if (pedido.telefono && pedido.telefono !== cl.telefono) { updateFields.push(`telefono=$${idx++}`); values.push(pedido.telefono); }
+        updateFields.push(`ultima_importacion=CURRENT_TIMESTAMP`);
+        updateFields.push(`updated_at=CURRENT_TIMESTAMP`);
+
+        if (updateFields.length > 2) {
+          values.push(cl.id);
+          await pool.query(`UPDATE logistics.clientes SET ${updateFields.join(',')} WHERE id=$${idx}`, values);
+          clientesActualizados++;
+        }
+        return cl;
+      }
+
+      let lat = null, lng = null;
+      if (pedido.direccion) {
+        const coords = await geocodificar(pedido.direccion, pedido.ciudad || 'Medellín');
+        if (coords) { lat = coords.lat; lng = coords.lng; geocodificados++; }
+      }
+
+      const nuevo = await pool.query(
+        `INSERT INTO logistics.clientes (nombre, direccion, ciudad, telefono, latitud, longitud, geocodificado, ultima_importacion)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,CURRENT_TIMESTAMP)
+         ON CONFLICT (nombre) DO UPDATE SET ultima_importacion=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+         RETURNING *`,
+        [nombre, pedido.direccion || '', pedido.ciudad || '', pedido.telefono || '', lat, lng, lat !== null]
+      );
+      if (nuevo.rows[0]?.created_at === nuevo.rows[0]?.updated_at) clientesNuevos++;
+      return nuevo.rows[0];
+    }
 
     for (const pedido of resultado.pedidos) {
       try {
+        const cliente = await buscarOCrearCliente(pedido);
         let lat = null, lng = null;
-        if (pedido.direccion) {
+        if (cliente?.latitud && cliente?.longitud) {
+          lat = cliente.latitud; lng = cliente.longitud;
+        } else if (pedido.direccion) {
           const coords = await geocodificar(pedido.direccion, pedido.ciudad || 'Medellín');
           if (coords) { lat = coords.lat; lng = coords.lng; geocodificados++; }
         }
         await pool.query(
-          `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_nombre, direccion, ciudad, telefono, latitud, longitud, valor_credito, estado)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pendiente')
+          `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, latitud, longitud, valor_credito, estado)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pendiente')
            ON CONFLICT (numero_factura) DO NOTHING`,
-          [pedido.numeroFactura, pedido.clienteNombre || pedido.clienteDir, pedido.direccion || '', pedido.ciudad || '', pedido.telefono || '', lat, lng, pedido.valor || 0]
+          [pedido.numeroFactura, cliente?.id || null, cliente?.nombre || pedido.clienteNombre || pedido.clienteDir,
+           pedido.direccion || '', pedido.ciudad || '', pedido.telefono || '', lat, lng, pedido.valor || 0]
         );
         importados++;
       } catch (e) {
@@ -78,6 +131,7 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
       exitosa: true,
       totalPedidos: resultado.totalPedidos,
       importados, fallidos, geocodificados,
+      clientesNuevos, clientesActualizados,
       conductor: resultado.conductor,
       placa: resultado.placa,
       debug: resultado._debug || null
