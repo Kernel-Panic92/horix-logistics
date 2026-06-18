@@ -246,9 +246,6 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
       <div class="nav-item" data-page="rutas" onclick="navigate('rutas')">
         <span class="icon">🗺️</span> Rutas
       </div>
-      <div class="nav-item" data-page="importar" onclick="navigate('importar')">
-        <span class="icon">📥</span> Importar
-      </div>
       <div class="nav-item" data-page="mapa" onclick="navigate('mapa')">
         <span class="icon">🗺️</span> Mapa
       </div>
@@ -305,6 +302,19 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
             <button class="btn btn-primary btn-sm" onclick="abrirModalVehiculo()">+ Nuevo</button>
           </div>
         </div>
+        <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-widetech-card">
+          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📊 Importar histórico Widetech</summary>
+          <div style="margin-top:12px;cursor:default;">
+            <div class="drop-zone" id="drop-widetech" onclick="document.getElementById('file-widetech').click()" style="padding:16px;">
+              <div class="icon" style="font-size:24px;">📊</div>
+              <p style="font-size:13px;">Arrastra el Excel aquí o haz clic</p>
+              <div class="filename" id="file-widetech-name"></div>
+            </div>
+            <input type="file" id="file-widetech" accept=".xlsx,.xls" style="display:none" onchange="previsualizarArchivo(this,'file-widetech-name')">
+            <button class="btn btn-primary" onclick="importarWidetech()" id="btn-import-widetech" style="width:100%;justify-content:center;" disabled>Importar Widetech</button>
+            <div id="result-widetech" style="margin-top:10px;"></div>
+          </div>
+        </details>
         <div class="tbl-wrap">
           <table class="tbl" id="tbl-vehiculos"><thead><tr>
             <th style="width:36px"><input type="checkbox" onchange="toggleAll('vehiculo',this.checked)"></th>
@@ -329,6 +339,19 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
             <button class="btn btn-primary btn-sm" onclick="abrirModalPedido()">+ Nuevo</button>
           </div>
         </div>
+        <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-siesa-card">
+          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📄 Importar planilla SIESA</summary>
+          <div style="margin-top:12px;cursor:default;">
+            <div class="drop-zone" id="drop-siesa" onclick="document.getElementById('file-siesa').click()" style="padding:16px;">
+              <div class="icon" style="font-size:24px;">📄</div>
+              <p style="font-size:13px;">Arrastra el PDF aquí o haz clic</p>
+              <div class="filename" id="file-siesa-name"></div>
+            </div>
+            <input type="file" id="file-siesa" accept=".pdf" style="display:none" onchange="previsualizarArchivo(this,'file-siesa-name')">
+            <button class="btn btn-primary" onclick="importarSiesa()" id="btn-import-siesa" style="width:100%;justify-content:center;" disabled>Importar SIESA</button>
+            <div id="result-siesa" style="margin-top:10px;"></div>
+          </div>
+        </details>
         <div class="tbl-wrap">
           <table class="tbl" id="tbl-pedidos"><thead><tr>
             <th style="width:36px"><input type="checkbox" onchange="toggleAll('pedido',this.checked)"></th>
@@ -357,33 +380,7 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
       <div class="page" id="page-importar">
         <div class="page-header">
           <h3>Importar datos</h3>
-          <p>Cargar planillas SIESA (PDF) o históricos Widetech (Excel)</p>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-          <div class="card">
-            <h4 style="margin-bottom:12px;font-family:var(--font-head);">📄 SIESA</h4>
-            <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Planilla de cuadre en PDF</p>
-            <div class="drop-zone" id="drop-siesa" onclick="document.getElementById('file-siesa').click()">
-              <div class="icon">📄</div>
-              <p>Arrastra el PDF aquí o haz clic</p>
-              <div class="filename" id="file-siesa-name"></div>
-            </div>
-            <input type="file" id="file-siesa" accept=".pdf" style="display:none" onchange="previsualizarArchivo(this,'file-siesa-name')">
-            <button class="btn btn-primary" onclick="importarSiesa()" id="btn-import-siesa" style="width:100%;justify-content:center;" disabled>Importar SIESA</button>
-            <div id="result-siesa" style="margin-top:10px;"></div>
-          </div>
-          <div class="card">
-            <h4 style="margin-bottom:12px;font-family:var(--font-head);">📊 Widetech</h4>
-            <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Histórico programado en Excel</p>
-            <div class="drop-zone" id="drop-widetech" onclick="document.getElementById('file-widetech').click()">
-              <div class="icon">📊</div>
-              <p>Arrastra el Excel aquí o haz clic</p>
-              <div class="filename" id="file-widetech-name"></div>
-            </div>
-            <input type="file" id="file-widetech" accept=".xlsx,.xls" style="display:none" onchange="previsualizarArchivo(this,'file-widetech-name')">
-            <button class="btn btn-primary" onclick="importarWidetech()" id="btn-import-widetech" style="width:100%;justify-content:center;" disabled>Importar Widetech</button>
-            <div id="result-widetech" style="margin-top:10px;"></div>
-          </div>
+          <p>Usa los botones en Pedidos (SIESA) o Vehículos (Widetech)</p>
         </div>
       </div>
 
@@ -515,6 +512,6 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

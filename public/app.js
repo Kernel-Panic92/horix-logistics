@@ -178,17 +178,6 @@ document.getElementById('modal-forgot')?.addEventListener('click', function(e) {
   if (e.target === this) cerrarForgot();
 });
 
-/* ── File helpers ── */
-function previsualizarArchivo(input, nameId) {
-  const el = document.getElementById(nameId);
-  if (input.files.length) {
-    el.textContent = input.files[0].name;
-    el.style.display = 'block';
-  } else {
-    el.style.display = 'none';
-  }
-}
-
 /* ── Dashboard ── */
 async function cargarDashboard() {
   const statsEl = document.getElementById('dash-stats');
