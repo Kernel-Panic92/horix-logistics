@@ -410,6 +410,7 @@ function abrirModalPedido(data) {
     `
       <div class="form-grid">
         <div class="form-group"><label>Factura *</label><input id="p-factura" value="${d.numero_factura||''}" placeholder="FEV-00001"></div>
+        <div class="form-group"><label>Sede</label><select id="p-sede"><option value="">Seleccione sede</option></select></div>
         <div class="form-group"><label>Cliente</label><input id="p-cliente" value="${d.cliente_nombre||''}" placeholder="Nombre del cliente"></div>
         <div class="form-group"><label>Dirección</label><input id="p-direccion" value="${d.direccion||''}" placeholder="Calle 123 #45-67"></div>
         <div class="form-group"><label>Ciudad</label><input id="p-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
@@ -426,6 +427,14 @@ function abrirModalPedido(data) {
     `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
      <button class="btn btn-primary" onclick="${data ? 'guardarPedido('+d.id+')' : 'guardarPedido()'}">${data ? 'Guardar cambios' : 'Crear pedido'}</button>`
   );
+  setTimeout(async () => {
+    if (!_sedesCache) { const res = await api('/sedes'); _sedesCache = res.sedes || []; }
+    const select = document.getElementById('p-sede');
+    if (select) {
+      select.innerHTML = '<option value="">Seleccione sede</option>' +
+        _sedesCache.map(s => `<option value="${esc(s.nombre)}" ${s.nombre === d.sede ? 'selected' : ''}>${esc(s.nombre)}</option>`).join('');
+    }
+  }, 50);
 }
 
 function editarPedido(id) {
@@ -440,7 +449,8 @@ async function guardarPedido(id) {
     ciudad: document.getElementById('p-ciudad').value.trim(),
     telefono: document.getElementById('p-telefono').value.trim(),
     valor_credito: +document.getElementById('p-valor').value,
-    estado: document.getElementById('p-estado').value
+    estado: document.getElementById('p-estado').value,
+    sede: document.getElementById('p-sede').value
   };
   if (!body.numero_factura) { alert('La factura es requerida'); return; }
   try {

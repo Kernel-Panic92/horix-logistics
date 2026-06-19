@@ -57,12 +57,12 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado } = req.body;
+    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede } = req.body;
     if (!numero_factura) return res.status(400).json({ error: 'numero_factura requerido' });
     const result = await pool.query(
-      `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado || 'pendiente']
+      `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado || 'pendiente', sede || null]
     );
     res.status(201).json({ exitosa: true, pedido: result.rows[0] });
   } catch (err) {
@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta } = req.body;
+    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede } = req.body;
     const result = await pool.query(
       `UPDATE logistics.pedidos_logistica SET
         numero_factura=COALESCE($1,numero_factura),
@@ -85,9 +85,10 @@ router.put('/:id', async (req, res) => {
         estado=COALESCE($8,estado),
         ruta_id=COALESCE($9,ruta_id),
         secuencia_en_ruta=COALESCE($10,secuencia_en_ruta),
+        sede=COALESCE($11,sede),
         updated_at=CURRENT_TIMESTAMP
-       WHERE id=$11 RETURNING *`,
-      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, req.params.id]
+       WHERE id=$12 RETURNING *`,
+      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
     res.json({ exitosa: true, pedido: result.rows[0] });
