@@ -252,7 +252,6 @@ export class VRPSolver {
 
       // Paso 3: Asignar pedidos a vehículos (simple: round-robin)
       const rutasPorVehiculo = {};
-      const vehiculosUsar = vehiculosConPos.length ? vehiculosConPos : vehiculos;
       vehiculosUsar.forEach(v => {
         rutasPorVehiculo[v.id] = [];
       });
