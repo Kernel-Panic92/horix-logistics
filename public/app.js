@@ -1607,6 +1607,7 @@ function configurarAutocompletePedido() {
       }
     }
     if (place.formatted_address) input.value = place.formatted_address;
+    actualizarMapaPin('mapa-pin-pedido', lat, lng);
   });
 }
 
@@ -1650,10 +1651,12 @@ function actualizarMapaPin(containerId, lat, lng) {
   map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
   const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
   map.setView([lat, lng], 16);
+  const isCliente = containerId === 'mapa-pin-cliente';
+  const isSede = containerId === 'mapa-pin-sede';
+  const latInputId = isCliente ? 'c-lat' : isSede ? 's-lat' : 'p-lat';
+  const lngInputId = isCliente ? 'c-lng' : isSede ? 's-lng' : 'p-lng';
   marker.on('dragend', () => {
     const pos = marker.getLatLng();
-    const latInputId = containerId === 'mapa-pin-cliente' ? 'c-lat' : 's-lat';
-    const lngInputId = containerId === 'mapa-pin-cliente' ? 'c-lng' : 's-lng';
     document.getElementById(latInputId).value = pos.lat.toFixed(8);
     document.getElementById(lngInputId).value = pos.lng.toFixed(8);
   });
