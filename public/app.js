@@ -170,6 +170,7 @@ function abrirModal(titulo, desc, bodyHtml, accionesHtml) {
   document.getElementById('modal-overlay').classList.add('show');
 }
 function cerrarModal() {
+  if (window._activeModalMap) { window._activeModalMap.remove(); window._activeModalMap = null; }
   document.getElementById('modal-overlay').classList.remove('show');
 }
 document.getElementById('modal-overlay').addEventListener('click', function(e) {
@@ -465,11 +466,13 @@ function abrirModalCliente(data) {
         <div class="form-group"><label>Latitud</label><input type="number" step="any" id="c-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
         <div class="form-group"><label>Longitud</label><input type="number" step="any" id="c-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
       </div>
+      <div class="mapa-pin" id="mapa-pin-cliente"></div>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px;">💡 Haz clic en el mapa para posicionar o arrastra el marcador</p>
     `,
     `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
      <button class="btn btn-primary" onclick="${data ? 'guardarCliente('+d.id+')' : 'guardarCliente()'}">${data ? 'Guardar cambios' : 'Crear cliente'}</button>`
   );
-  setTimeout(configurarAutocompleteCliente, 300);
+  setTimeout(() => { configurarAutocompleteCliente(); initMapaPin('mapa-pin-cliente', 'c-lat', 'c-lng'); }, 300);
 }
 
 function editarCliente(id) {
@@ -536,11 +539,14 @@ function abrirModalSede(data) {
           <option value="true" ${d.activo!==false?'selected':''}>Activo</option>
           <option value="false" ${d.activo===false?'selected':''}>Inactivo</option>
         </select></div>` : ''}
-      </div>`,
+      </div>
+      <div class="mapa-pin" id="mapa-pin-sede"></div>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px;">💡 Haz clic en el mapa para posicionar o arrastra el marcador</p>
+    `,
     `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
      <button class="btn btn-primary" onclick="${data ? 'guardarSede('+d.id+')' : 'guardarSede()'}">${data ? 'Guardar cambios' : 'Crear sede'}</button>`
   );
-  setTimeout(configurarAutocompleteSede, 100);
+  setTimeout(() => { configurarAutocompleteSede(); initMapaPin('mapa-pin-sede', 's-lat', 's-lng'); }, 100);
 }
 
 function editarSede(id) {
@@ -1521,6 +1527,40 @@ function configurarAutocompleteSede() {
       }
     }
     if (place.formatted_address) input.value = place.formatted_address;
+  });
+}
+
+function initMapaPin(containerId, latInputId, lngInputId) {
+  const container = document.getElementById(containerId);
+  if (!container || container._leafletMap) return;
+  const latVal = parseFloat(document.getElementById(latInputId)?.value);
+  const lngVal = parseFloat(document.getElementById(lngInputId)?.value);
+  const hasCoords = !isNaN(latVal) && !isNaN(lngVal);
+  const center = hasCoords ? [latVal, lngVal] : [6.2476, -75.5658];
+  const map = L.map(container).setView(center, 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+  container._leafletMap = map;
+  window._activeModalMap = map;
+
+  let marker = null;
+  if (hasCoords) {
+    marker = L.marker(center, { draggable: true }).addTo(map);
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng();
+      document.getElementById(latInputId).value = pos.lat.toFixed(8);
+      document.getElementById(lngInputId).value = pos.lng.toFixed(8);
+    });
+  }
+  map.on('click', (e) => {
+    if (marker) marker.setLatLng(e.latlng);
+    else { marker = L.marker(e.latlng, { draggable: true }).addTo(map); }
+    document.getElementById(latInputId).value = e.latlng.lat.toFixed(8);
+    document.getElementById(lngInputId).value = e.latlng.lng.toFixed(8);
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng();
+      document.getElementById(latInputId).value = pos.lat.toFixed(8);
+      document.getElementById(lngInputId).value = pos.lng.toFixed(8);
+    });
   });
 }
 
