@@ -55,3 +55,18 @@ export async function enviarCorreo(to, subject, text, html) {
     html: html || text.replace(/\n/g, '<br>')
   });
 }
+
+export async function obtenerPlantilla(tipo) {
+  const cfg = await cargarConfigLocal();
+  if (cfg.plantilla_heredar === '1' || cfg.plantilla_heredar === 'true') {
+    try {
+      const launcherUrl = (cfg.launcher_url || 'http://localhost:3002').replace(/\/+$/, '');
+      const res = await fetch(launcherUrl + '/api/plantillas/internal?modulo=logistics&tipo=' + encodeURIComponent(tipo), { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error('Launcher responded ' + res.status);
+      return await res.json();
+    } catch (e) {
+      console.warn('[EMAIL] Fallback a plantilla local (launcher no disponible):', e.message);
+    }
+  }
+  return null;
+}

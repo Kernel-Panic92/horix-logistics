@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import pool from '../config/db.js';
-import { enviarCorreo } from '../utils/email.js';
+import { enviarCorreo, obtenerPlantilla } from '../utils/email.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'logistics-dev-secret-change-in-production';
@@ -145,14 +145,30 @@ router.post('/forgot-password', async (req, res) => {
       const expira = new Date(Date.now() + 30 * 60 * 1000);
       await pool.query('INSERT INTO logistics.tokens_reset (token, usuario_id, expira) VALUES ($1, $2, $3)', [token, user.id, expira]);
       try {
-        const cfgResult = await pool.query("SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('app_url','reset_asunto','reset_cuerpo')");
+        const cfgResult = await pool.query("SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('app_url','reset_asunto','reset_cuerpo','plantilla_heredar','launcher_url')");
         const cfg = {};
         for (const row of cfgResult.rows) cfg[row.clave] = row.valor;
         const baseUrl = cfg.app_url || `${req.protocol}://${req.get('host')}`;
         const enlace = `${baseUrl}/reset-password.html?token=${token}`;
-        let cuerpo = cfg.reset_cuerpo || 'Hola {nombre},\n\n{enlace}';
-        cuerpo = cuerpo.replace(/{nombre}/g, user.nombre).replace(/{enlace}/g, enlace);
-        await enviarCorreo(user.email, cfg.reset_asunto || 'Recuperación de contraseña', cuerpo);
+
+        const plantilla = await obtenerPlantilla('reset_password');
+        let asunto, cuerpo, esHtml;
+        if (plantilla) {
+          asunto = plantilla.asunto || 'Recuperación de contraseña';
+          cuerpo = plantilla.cuerpo_html || 'Hola {nombre},<br><a href="{enlace}">{enlace}</a>';
+          esHtml = true;
+        } else {
+          asunto = cfg.reset_asunto || 'Recuperación de contraseña';
+          cuerpo = cfg.reset_cuerpo || 'Hola {nombre},\n\n{enlace}';
+          esHtml = false;
+        }
+        cuerpo = cuerpo.replace(/{nombre}/g, user.nombre).replace(/{enlace}/g, enlace).replace(/{empresa}/g, 'Vitamar');
+
+        if (esHtml) {
+          await enviarCorreo(user.email, asunto, cuerpo.replace(/<[^>]*>/g, ''), cuerpo);
+        } else {
+          await enviarCorreo(user.email, asunto, cuerpo);
+        }
       } catch (mailErr) {
         console.error('Error enviando correo de recuperación:', mailErr);
       }
