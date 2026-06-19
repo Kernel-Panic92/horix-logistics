@@ -409,6 +409,10 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <div class="page-header flex" style="justify-content:space-between;align-items:center;">
           <div><h3>Rutas</h3><p>Rutas optimizadas y planificadas</p></div>
           <div class="flex gap-sm">
+            <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;">
+              <input type="checkbox" onchange="toggleAll('ruta',this.checked)" style="accent-color:var(--accent);"> Todo
+            </label>
+            <button class="btn btn-danger btn-sm" id="btn-del-ruta" style="display:none" onclick="eliminarSeleccionados('ruta')">🗑️ Eliminar</button>
             <input type="date" id="filtro-fecha" onchange="cargarRutas()" style="width:auto;">
             <select id="filtro-rutas-sede" style="width:auto;max-width:180px;" onchange="cargarRutas()">
               <option value="">Todas las sedes</option>
@@ -418,7 +422,8 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         </div>
         <div class="tbl-wrap">
           <table class="tbl" id="tbl-rutas"><thead><tr>
-            <th>Nombre</th><th>Vehículo</th><th>Sede</th><th>Paradas</th><th>Distancia</th><th>Tiempo</th><th>Estado</th><th>Fecha</th><th style="width:80px"></th>
+            <th style="width:40px;"></th>
+            <th>Nombre</th><th>Vehículo</th><th>Sede</th><th>Paradas</th><th>Distancia</th><th>Tiempo</th><th>Estado</th><th>Fecha</th><th style="width:90px;"></th>
           </tr></thead><tbody></tbody></table>
         </div>
       </div>

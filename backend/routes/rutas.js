@@ -140,6 +140,32 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.delete('/:id', async (req, res) => {
+  try {
+    const ruta = await pool.query('SELECT id FROM logistics.rutas WHERE id=$1', [req.params.id]);
+    if (ruta.rows.length === 0) return res.status(404).json({ error: 'Ruta no encontrada' });
+    await pool.query('UPDATE logistics.pedidos_logistica SET ruta_id=NULL, estado=\'pendiente\', secuencia_en_ruta=NULL WHERE ruta_id=$1', [req.params.id]);
+    await pool.query('DELETE FROM logistics.paradas_ruta WHERE ruta_id=$1', [req.params.id]);
+    await pool.query('DELETE FROM logistics.rutas WHERE id=$1', [req.params.id]);
+    res.json({ exitosa: true, mensaje: 'Ruta eliminada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
+    await pool.query('UPDATE logistics.pedidos_logistica SET ruta_id=NULL, estado=\'pendiente\', secuencia_en_ruta=NULL WHERE ruta_id=ANY($1)', [ids]);
+    await pool.query('DELETE FROM logistics.paradas_ruta WHERE ruta_id=ANY($1)', [ids]);
+    const result = await pool.query('DELETE FROM logistics.rutas WHERE id=ANY($1) RETURNING id', [ids]);
+    res.json({ exitosa: true, eliminados: result.rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/mapa/datos', async (req, res) => {
   try {
     const { fecha } = req.query;

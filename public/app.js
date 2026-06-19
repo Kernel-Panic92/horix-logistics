@@ -601,7 +601,7 @@ async function guardarSede(id) {
 /* ── Eliminar (genérico) ── */
 function confirmarEliminar(tipo, id, label) {
   if (!confirm(label ? `¿Eliminar ${tipo} "${label}"?` : `¿Eliminar ${tipo} #${id}?`)) return;
-  const endpoints = { vehiculo: '/vehiculos/', pedido: '/pedidos/', cliente: '/clientes/', sede: '/sedes/' };
+  const endpoints = { vehiculo: '/vehiculos/', pedido: '/pedidos/', cliente: '/clientes/', sede: '/sedes/', ruta: '/rutas/' };
   const ep = endpoints[tipo];
   if (!ep) return;
   api(ep + id, { method: 'DELETE' }).then(() => {
@@ -609,6 +609,7 @@ function confirmarEliminar(tipo, id, label) {
     else if (tipo === 'pedido') cargarPedidos();
     else if (tipo === 'cliente') cargarClientes();
     else if (tipo === 'sede') cargarSedes();
+    else if (tipo === 'ruta') cargarRutas();
   }).catch(e => alert(e.message));
 }
 
@@ -635,12 +636,17 @@ async function eliminarSeleccionados(tipo) {
   if (!checks.length) return;
   const ids = Array.from(checks).map(c => +c.value);
   if (!confirm(`¿Eliminar ${ids.length} ${tipo}(s) seleccionados?`)) return;
-  const ep = { vehiculo: '/vehiculos/seleccionados', pedido: '/pedidos/seleccionados', cliente: '/clientes/seleccionados' };
+  const ep = { vehiculo: '/vehiculos/seleccionados', pedido: '/pedidos/seleccionados', cliente: '/clientes/seleccionados', ruta: '/rutas/' };
   try {
-    await api(ep[tipo], { method: 'DELETE', body: JSON.stringify({ ids }) });
+    if (tipo === 'ruta') {
+      await api('/rutas/', { method: 'DELETE', body: JSON.stringify({ ids }) });
+    } else {
+      await api(ep[tipo], { method: 'DELETE', body: JSON.stringify({ ids }) });
+    }
     if (tipo === 'vehiculo') cargarVehiculos();
     else if (tipo === 'pedido') cargarPedidos();
     else if (tipo === 'cliente') cargarClientes();
+    else if (tipo === 'ruta') cargarRutas();
   } catch (e) { alert(e.message); }
 }
 
@@ -655,9 +661,10 @@ async function cargarRutas() {
     if (fecha) params.set('fecha', fecha);
     if (sede) params.set('sede', sede);
     const data = await api('/rutas?' + params.toString());
-    if (!data.rutas?.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:32px;">No hay rutas para esta fecha</td></tr>'; return; }
+    if (!data.rutas?.length) { tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted" style="padding:32px;">No hay rutas para esta fecha</td></tr>'; return; }
     tbody.innerHTML = data.rutas.map(r => `
       <tr>
+        <td><input type="checkbox" class="cb-ruta" value="${r.id}" onchange="actualizarBtnEliminar('ruta')"></td>
         <td><strong>${r.nombre || 'Ruta #'+r.id}</strong></td>
         <td>${r.placa || '—'}</td>
         <td>${r.sede || '—'}</td>
@@ -666,11 +673,11 @@ async function cargarRutas() {
         <td>${r.tiempo_estimado ? r.tiempo_estimado+' min' : '—'}</td>
         <td><span class="badge badge-${r.estado==='planificada'?'info':r.estado==='en_ejecucion'?'warning':r.estado==='completada'?'success':'danger'}">${r.estado}</span></td>
         <td>${r.fecha ? r.fecha.slice(0,10) : '—'}</td>
-        <td><button class="btn btn-sm btn-secondary" onclick="verRuta(${r.id})">👁️</button></td>
+        <td><button class="btn btn-sm btn-secondary" onclick="verRuta(${r.id})">👁️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('ruta',${r.id})">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error al cargar</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Error al cargar</td></tr>';
   }
 }
 
