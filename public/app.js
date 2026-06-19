@@ -410,7 +410,8 @@ function abrirModalPedido(data) {
     `
       <div class="form-grid">
         <div class="form-group"><label>Factura *</label><input id="p-factura" value="${d.numero_factura||''}" placeholder="FEV-00001"></div>
-        <div class="form-group"><label>Sede</label><select id="p-sede"><option value="">Seleccione sede</option></select></div>
+        <div class="form-group"><label>Sede</label><select id="p-sede" onchange="filtrarVehiculosPorSede()"><option value="">Seleccione sede</option></select></div>
+        <div class="form-group"><label>Vehículo</label><select id="p-vehiculo"><option value="">Todos los vehículos</option></select></div>
         <div class="form-group"><label>Cliente</label><input id="p-cliente" value="${d.cliente_nombre||''}" placeholder="Nombre del cliente"></div>
         <div class="form-group"><label>Dirección</label><input id="p-direccion" value="${d.direccion||''}" placeholder="Calle 123 #45-67"></div>
         <div class="form-group"><label>Ciudad</label><input id="p-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
@@ -425,6 +426,8 @@ function abrirModalPedido(data) {
           <option value="cancelado" ${d.estado==='cancelado'?'selected':''}>Cancelado</option>
         </select></div>
       </div>
+      <div class="mapa-pin" id="mapa-pin-pedido"></div>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px;">💡 Haz clic en el mapa para posicionar o arrastra el marcador</p>
     `,
     `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
      <button class="btn btn-primary" onclick="${data ? 'guardarPedido('+d.id+')' : 'guardarPedido()'}">${data ? 'Guardar cambios' : 'Crear pedido'}</button>`
@@ -436,7 +439,9 @@ function abrirModalPedido(data) {
       select.innerHTML = '<option value="">Seleccione sede</option>' +
         _sedesCache.map(s => `<option value="${esc(s.nombre)}" ${s.nombre === d.sede ? 'selected' : ''}>${esc(s.nombre)}</option>`).join('');
     }
+    await filtrarVehiculosPorSede(d.vehiculo_id);
     configurarAutocompletePedido();
+    initMapaPin('mapa-pin-pedido', 'p-lat', 'p-lng');
   }, 50);
 }
 
@@ -455,7 +460,8 @@ async function guardarPedido(id) {
     longitud: document.getElementById('p-lng').value ? +document.getElementById('p-lng').value : null,
     valor_credito: +document.getElementById('p-valor').value,
     estado: document.getElementById('p-estado').value,
-    sede: document.getElementById('p-sede').value
+    sede: document.getElementById('p-sede').value,
+    vehiculo_id: document.getElementById('p-vehiculo').value || null
   };
   if (!body.numero_factura) { alert('La factura es requerida'); return; }
   try {
@@ -678,6 +684,20 @@ async function poblarSedesRutas() {
     select.innerHTML = '<option value="">Todas las sedes</option>' +
       _sedesCache.map(s => `<option value="${esc(s.nombre)}" ${s.nombre===actual?'selected':''}>${esc(s.nombre)}</option>`).join('');
   } catch {}
+}
+
+async function filtrarVehiculosPorSede(selectedId) {
+  const select = document.getElementById('p-vehiculo');
+  if (!select) return;
+  const sede = document.getElementById('p-sede')?.value;
+  try {
+    const q = sede ? `?q=${encodeURIComponent(sede)}` : '';
+    const data = await api('/vehiculos' + q);
+    const vehiculos = data.vehiculos || [];
+    const actual = selectedId || select.value;
+    select.innerHTML = '<option value="">Todos los vehículos</option>' +
+      vehiculos.map(v => `<option value="${v.id}" ${v.id == actual ? 'selected' : ''}>${esc(v.placa)} - ${esc(v.alias || v.sede || 'Sin alias')}</option>`).join('');
+  } catch { select.innerHTML = '<option value="">Todos los vehículos</option>'; }
 }
 
 async function verRuta(id) {

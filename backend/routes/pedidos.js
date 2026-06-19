@@ -57,12 +57,12 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede, latitud, longitud } = req.body;
+    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede, latitud, longitud, vehiculo_id } = req.body;
     if (!numero_factura) return res.status(400).json({ error: 'numero_factura requerido' });
     const result = await pool.query(
-      `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede, latitud, longitud)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado || 'pendiente', sede || null, latitud || null, longitud || null]
+      `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede, latitud, longitud, vehiculo_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado || 'pendiente', sede || null, latitud || null, longitud || null, vehiculo_id || null]
     );
     res.status(201).json({ exitosa: true, pedido: result.rows[0] });
   } catch (err) {
@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud } = req.body;
+    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id } = req.body;
     const result = await pool.query(
       `UPDATE logistics.pedidos_logistica SET
         numero_factura=COALESCE($1,numero_factura),
@@ -88,9 +88,10 @@ router.put('/:id', async (req, res) => {
         sede=COALESCE($11,sede),
         latitud=COALESCE($12,latitud),
         longitud=COALESCE($13,longitud),
+        vehiculo_id=COALESCE($14,vehiculo_id),
         updated_at=CURRENT_TIMESTAMP
-       WHERE id=$14 RETURNING *`,
-      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, req.params.id]
+       WHERE id=$15 RETURNING *`,
+      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
     res.json({ exitosa: true, pedido: result.rows[0] });
