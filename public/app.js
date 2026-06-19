@@ -513,7 +513,7 @@ async function cargarSedes() {
       <td>${esc(s.ciudad || '—')}</td>
       <td>${esc(s.direccion || '—')}</td>
       <td>${esc(s.telefono || '—')}</td>
-      <td>${s.latitud && s.longitud ? s.latitud.toFixed(4)+', '+s.longitud.toFixed(4) : '—'}</td>
+      <td>${s.latitud != null && s.longitud != null ? Number(s.latitud).toFixed(4)+', '+Number(s.longitud).toFixed(4) : '—'}</td>
       <td><span class="badge badge-${s.activo ? 'success' : 'danger'}">${s.activo ? 'Activo' : 'Inactivo'}</span></td>
       <td><button class="btn btn-sm btn-secondary" onclick="editarSede(${s.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('sede',${s.id},'${esc(s.nombre)}')" title="Eliminar">🗑️</button></td>
     </tr>`).join('');
