@@ -67,7 +67,7 @@ router.post('/generar', async (req, res) => {
     }
 
     const pedidos = await pool.query(
-      `SELECT id, latitud, longitud, peso_estimado, volumen_estimado
+      `SELECT id, latitud AS lat, longitud AS lng, peso_estimado, volumen_estimado
        FROM logistics.pedidos_logistica WHERE estado='pendiente' AND ruta_id IS NULL AND latitud IS NOT NULL AND longitud IS NOT NULL`
     );
     if (pedidos.rows.length === 0) return res.status(400).json({ error: 'No hay pedidos pendientes con coordenadas. Asegúrate de que los pedidos tengan latitud y longitud.' });
