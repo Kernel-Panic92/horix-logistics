@@ -792,16 +792,29 @@ function cargarConfig() { rConfig(); }
 
 /* ── SMTP Tab ── */
 function renderSmtp(el, c) {
+  const heredar = c.smtp_heredar === '1' || c.smtp_heredar === 'true';
   el.innerHTML = `
     <div class="card" style="max-width:600px;">
       <h4 style="margin-bottom:16px;font-family:var(--font-head);">📧 Configuración SMTP</h4>
-      <div class="form-grid">
-        <div class="form-group"><label>Host SMTP</label><input id="cfg-host" value="${esc(c.smtp_host||'')}" placeholder="smtp.gmail.com"></div>
-        <div class="form-group"><label>Puerto</label><input id="cfg-puerto" value="${c.smtp_puerto||'587'}" placeholder="587"></div>
-        <div class="form-group"><label>TLS</label><select id="cfg-tls"><option value="1" ${c.smtp_tls==='1'?'selected':''}>Sí</option><option value="0" ${c.smtp_tls==='0'?'selected':''}>No</option></select></div>
-        <div class="form-group"><label>Usuario</label><input id="cfg-usuario" value="${esc(c.smtp_usuario||'')}"></div>
-        <div class="form-group"><label>Contraseña</label><input type="password" id="cfg-password" value="${c.smtp_password?'••••••••':''}"></div>
-        <div class="form-group"><label>Remitente (From)</label><input id="cfg-remitente" value="${esc(c.smtp_remitente||'')}" placeholder="logistics@vitamar.com"></div>
+      <div style="margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+          <input type="checkbox" id="cfg-heredar" ${heredar?'checked':''} onchange="toggleHeredarSmtp()">
+          Heredar configuración del Launcher
+        </label>
+        <div id="cfg-launcher-url-wrap" style="margin-top:8px;${heredar?'':'display:none;'}">
+          <label style="font-size:12px;color:var(--muted);">URL del Launcher</label>
+          <input id="cfg-launcher-url" value="${esc(c.launcher_url||'http://localhost:3002')}" placeholder="http://localhost:3002" style="width:100%;padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+        </div>
+      </div>
+      <div id="cfg-smtp-local" style="${heredar?'opacity:0.5;pointer-events:none;':''}">
+        <div class="form-grid">
+          <div class="form-group"><label>Host SMTP</label><input id="cfg-host" value="${esc(c.smtp_host||'')}" placeholder="smtp.gmail.com"></div>
+          <div class="form-group"><label>Puerto</label><input id="cfg-puerto" value="${c.smtp_puerto||'587'}" placeholder="587"></div>
+          <div class="form-group"><label>TLS</label><select id="cfg-tls"><option value="1" ${c.smtp_tls==='1'?'selected':''}>Sí</option><option value="0" ${c.smtp_tls==='0'?'selected':''}>No</option></select></div>
+          <div class="form-group"><label>Usuario</label><input id="cfg-usuario" value="${esc(c.smtp_usuario||'')}"></div>
+          <div class="form-group"><label>Contraseña</label><input type="password" id="cfg-password" value="${c.smtp_password?'••••••••':''}"></div>
+          <div class="form-group"><label>Remitente (From)</label><input id="cfg-remitente" value="${esc(c.smtp_remitente||'')}" placeholder="logistics@vitamar.com"></div>
+        </div>
       </div>
       <div class="flex" style="margin-top:8px;">
         <button class="btn btn-primary" onclick="guardarSmtp()">✓ Guardar</button>
@@ -811,17 +824,29 @@ function renderSmtp(el, c) {
     </div>`;
 }
 
+function toggleHeredarSmtp() {
+  const checked = document.getElementById('cfg-heredar').checked;
+  document.getElementById('cfg-launcher-url-wrap').style.display = checked ? '' : 'none';
+  document.getElementById('cfg-smtp-local').style.opacity = checked ? '0.5' : '';
+  document.getElementById('cfg-smtp-local').style.pointerEvents = checked ? 'none' : '';
+}
+
 async function guardarSmtp() {
   const msg = document.getElementById('smtp-msg');
   try {
-    await api('/configuracion', { method: 'PUT', body: JSON.stringify({
-      smtp_host: document.getElementById('cfg-host').value.trim(),
-      smtp_puerto: document.getElementById('cfg-puerto').value.trim(),
-      smtp_tls: document.getElementById('cfg-tls').value,
-      smtp_usuario: document.getElementById('cfg-usuario').value.trim(),
-      smtp_password: document.getElementById('cfg-password').value,
-      smtp_remitente: document.getElementById('cfg-remitente').value.trim()
-    })});
+    const body = {
+      smtp_heredar: document.getElementById('cfg-heredar').checked ? '1' : '0',
+      launcher_url: document.getElementById('cfg-launcher-url').value.trim()
+    };
+    if (body.smtp_heredar !== '1') {
+      body.smtp_host = document.getElementById('cfg-host').value.trim();
+      body.smtp_puerto = document.getElementById('cfg-puerto').value.trim();
+      body.smtp_tls = document.getElementById('cfg-tls').value;
+      body.smtp_usuario = document.getElementById('cfg-usuario').value.trim();
+      body.smtp_password = document.getElementById('cfg-password').value;
+      body.smtp_remitente = document.getElementById('cfg-remitente').value.trim();
+    }
+    await api('/configuracion', { method: 'PUT', body: JSON.stringify(body) });
     msg.innerHTML = '<span style="color:var(--success)">✓ Configuración guardada</span>';
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
@@ -830,14 +855,17 @@ async function testSmtp() {
   const msg = document.getElementById('smtp-msg');
   msg.innerHTML = '<span class="text-muted">Enviando...</span>';
   try {
-    const data = await api('/configuracion/test', { method: 'POST', body: JSON.stringify({
-      host: document.getElementById('cfg-host').value.trim(),
-      puerto: document.getElementById('cfg-puerto').value.trim(),
-      tls: document.getElementById('cfg-tls').value,
-      usuario: document.getElementById('cfg-usuario').value.trim(),
-      password: document.getElementById('cfg-password').value,
-      remitente: document.getElementById('cfg-remitente').value.trim()
-    })});
+    const heredar = document.getElementById('cfg-heredar').checked;
+    const body = { smtp_heredar: heredar ? '1' : '0', launcher_url: document.getElementById('cfg-launcher-url').value.trim() };
+    if (!heredar) {
+      body.host = document.getElementById('cfg-host').value.trim();
+      body.puerto = document.getElementById('cfg-puerto').value.trim();
+      body.tls = document.getElementById('cfg-tls').value;
+      body.usuario = document.getElementById('cfg-usuario').value.trim();
+      body.password = document.getElementById('cfg-password').value;
+      body.remitente = document.getElementById('cfg-remitente').value.trim();
+    }
+    const data = await api('/configuracion/test', { method: 'POST', body: JSON.stringify(body) });
     msg.innerHTML = '<span style="color:var(--success)">✓ ' + data.mensaje + '</span>';
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }

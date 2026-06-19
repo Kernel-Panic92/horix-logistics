@@ -9,6 +9,38 @@ function soloAdmin(req, res, next) {
   next();
 }
 
+async function obtenerConfigSmtp() {
+  const result = await pool.query('SELECT clave, valor FROM logistics.configuracion');
+  const cfg = {};
+  for (const row of result.rows) cfg[row.clave] = row.valor;
+  if (cfg.smtp_heredar === '1' || cfg.smtp_heredar === 'true') {
+    try {
+      const launcherUrl = (cfg.launcher_url || 'http://localhost:3002').replace(/\/+$/, '');
+      const res = await fetch(launcherUrl + '/api/smtp/internal', { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error('Launcher responded ' + res.status);
+      const data = await res.json();
+      return {
+        host: data.config.smtp_host || '',
+        port: parseInt(data.config.smtp_port || '587'),
+        secure: data.config.smtp_secure === 'true',
+        user: data.config.smtp_user || '',
+        pass: data.config.smtp_pass || '',
+        from: data.config.smtp_from || data.config.smtp_user || 'logistics@vitamar.com'
+      };
+    } catch (e) {
+      console.warn('[CONFIG] Fallback SMTP local (launcher no disponible):', e.message);
+    }
+  }
+  return {
+    host: cfg.smtp_host || '',
+    port: parseInt(cfg.smtp_puerto || '587'),
+    secure: cfg.smtp_tls === '1',
+    user: cfg.smtp_usuario || '',
+    pass: cfg.smtp_password || '',
+    from: cfg.smtp_remitente || cfg.smtp_usuario || 'logistics@vitamar.com'
+  };
+}
+
 router.get('/', soloAdmin, async (req, res) => {
   try {
     const result = await pool.query('SELECT clave, valor FROM logistics.configuracion');
@@ -85,16 +117,39 @@ router.post('/fail2ban/:action', soloAdmin, async (req, res) => {
 
 router.post('/test', soloAdmin, async (req, res) => {
   try {
-    const { host, puerto, tls, usuario, password, remitente } = req.body;
+    let smtp;
+    const { host, puerto, tls } = req.body;
+    if (host) {
+      smtp = {
+        host, port: parseInt(puerto) || 587,
+        secure: tls === '1' || tls === true,
+        user: req.body.usuario || '',
+        pass: req.body.password || '',
+        from: req.body.remitente || req.body.usuario || 'logistics@vitamar.com'
+      };
+    } else if (req.body.smtp_heredar === '1') {
+      const launcherUrl = (req.body.launcher_url || 'http://localhost:3002').replace(/\/+$/, '');
+      const launcherRes = await fetch(launcherUrl + '/api/smtp/internal', { signal: AbortSignal.timeout(5000) });
+      if (!launcherRes.ok) throw new Error('Launcher responded ' + launcherRes.status);
+      const data = await launcherRes.json();
+      smtp = {
+        host: data.config.smtp_host || '',
+        port: parseInt(data.config.smtp_port || '587'),
+        secure: data.config.smtp_secure === 'true',
+        user: data.config.smtp_user || '',
+        pass: data.config.smtp_pass || '',
+        from: data.config.smtp_from || data.config.smtp_user || 'logistics@vitamar.com'
+      };
+    } else {
+      smtp = await obtenerConfigSmtp();
+    }
+    if (!smtp.host) throw new Error('SMTP no configurado');
     const transporter = nodemailer.createTransport({
-      host: host || 'localhost',
-      port: parseInt(puerto) || 587,
-      secure: tls === '1' || tls === true,
-      auth: { user: usuario || '', pass: password || '' }
+      host: smtp.host, port: smtp.port, secure: smtp.secure,
+      auth: smtp.user ? { user: smtp.user, pass: smtp.pass } : undefined
     });
     await transporter.sendMail({
-      from: remitente || usuario || 'logistics@vitamar.com',
-      to: req.usuario.email,
+      from: smtp.from, to: req.usuario.email,
       subject: '🔧 Prueba SMTP - Horix Logistics',
       text: 'Si recibes esto, la configuración SMTP funciona correctamente.'
     });
