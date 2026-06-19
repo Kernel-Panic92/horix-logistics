@@ -415,6 +415,8 @@ function abrirModalPedido(data) {
         <div class="form-group"><label>Dirección</label><input id="p-direccion" value="${d.direccion||''}" placeholder="Calle 123 #45-67"></div>
         <div class="form-group"><label>Ciudad</label><input id="p-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
         <div class="form-group"><label>Teléfono</label><input id="p-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
+        <div class="form-group"><label>Latitud</label><input type="number" step="any" id="p-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
+        <div class="form-group"><label>Longitud</label><input type="number" step="any" id="p-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
         <div class="form-group"><label>Valor</label><input type="number" id="p-valor" value="${d.valor_credito||0}"></div>
         <div class="form-group"><label>Estado</label><select id="p-estado">
           <option value="pendiente" ${(d.estado||'pendiente')==='pendiente'?'selected':''}>Pendiente</option>
@@ -434,6 +436,7 @@ function abrirModalPedido(data) {
       select.innerHTML = '<option value="">Seleccione sede</option>' +
         _sedesCache.map(s => `<option value="${esc(s.nombre)}" ${s.nombre === d.sede ? 'selected' : ''}>${esc(s.nombre)}</option>`).join('');
     }
+    configurarAutocompletePedido();
   }, 50);
 }
 
@@ -448,6 +451,8 @@ async function guardarPedido(id) {
     direccion: document.getElementById('p-direccion').value.trim(),
     ciudad: document.getElementById('p-ciudad').value.trim(),
     telefono: document.getElementById('p-telefono').value.trim(),
+    latitud: document.getElementById('p-lat').value ? +document.getElementById('p-lat').value : null,
+    longitud: document.getElementById('p-lng').value ? +document.getElementById('p-lng').value : null,
     valor_credito: +document.getElementById('p-valor').value,
     estado: document.getElementById('p-estado').value,
     sede: document.getElementById('p-sede').value
@@ -1544,6 +1549,44 @@ function configurarAutocompleteSede() {
     }
     if (place.formatted_address) input.value = place.formatted_address;
     actualizarMapaPin('mapa-pin-sede', lat, lng);
+  });
+}
+
+function configurarAutocompletePedido() {
+  if (typeof google === 'undefined' || !window.googleMapsListo) {
+    const input = document.getElementById('p-direccion');
+    if (input && !input._aviso) {
+      input._aviso = true;
+      input.placeholder = '🔑 Configura API Key en Ajustes → Mapas';
+      input.title = 'Ve a Configuración → Mapas para ingresar tu API key de Google Maps';
+    }
+    return;
+  }
+  const input = document.getElementById('p-direccion');
+  if (!input || input._autocomplete) return;
+
+  const ac = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'co' },
+    fields: ['address_components', 'formatted_address', 'geometry', 'name']
+  });
+  input._autocomplete = true;
+
+  ac.addListener('place_changed', () => {
+    const place = ac.getPlace();
+    if (!place.geometry) return;
+    const lat = place.geometry.location.lat();
+    const lng = place.geometry.location.lng();
+    document.getElementById('p-lat').value = lat;
+    document.getElementById('p-lng').value = lng;
+    for (const comp of place.address_components || []) {
+      if (comp.types.includes('locality') || comp.types.includes('administrative_area_level_2')) {
+        document.getElementById('p-ciudad').value = comp.long_name;
+        break;
+      } else if (comp.types.includes('administrative_area_level_1')) {
+        document.getElementById('p-ciudad').value = comp.long_name;
+      }
+    }
+    if (place.formatted_address) input.value = place.formatted_address;
   });
 }
 

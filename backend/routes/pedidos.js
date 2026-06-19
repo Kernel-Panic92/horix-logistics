@@ -57,12 +57,12 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede } = req.body;
+    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede, latitud, longitud } = req.body;
     if (!numero_factura) return res.status(400).json({ error: 'numero_factura requerido' });
     const result = await pool.query(
-      `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado || 'pendiente', sede || null]
+      `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede, latitud, longitud)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado || 'pendiente', sede || null, latitud || null, longitud || null]
     );
     res.status(201).json({ exitosa: true, pedido: result.rows[0] });
   } catch (err) {
@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede } = req.body;
+    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud } = req.body;
     const result = await pool.query(
       `UPDATE logistics.pedidos_logistica SET
         numero_factura=COALESCE($1,numero_factura),
@@ -86,9 +86,11 @@ router.put('/:id', async (req, res) => {
         ruta_id=COALESCE($9,ruta_id),
         secuencia_en_ruta=COALESCE($10,secuencia_en_ruta),
         sede=COALESCE($11,sede),
+        latitud=COALESCE($12,latitud),
+        longitud=COALESCE($13,longitud),
         updated_at=CURRENT_TIMESTAMP
-       WHERE id=$12 RETURNING *`,
-      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, req.params.id]
+       WHERE id=$14 RETURNING *`,
+      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
     res.json({ exitosa: true, pedido: result.rows[0] });
