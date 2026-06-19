@@ -518,7 +518,8 @@ async function cargarSedes() {
       <td><button class="btn btn-sm btn-secondary" onclick="editarSede(${s.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('sede',${s.id},'${esc(s.nombre)}')" title="Eliminar">🗑️</button></td>
     </tr>`).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">Error al cargar</td></tr>';
+    console.error('Error al cargar sedes:', e);
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">Error al cargar: ' + esc(e.message) + '</td></tr>';
   }
 }
 
