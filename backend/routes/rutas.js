@@ -34,8 +34,20 @@ router.get('/:id', async (req, res) => {
 
 router.post('/generar', async (req, res) => {
   try {
-    const { fecha, sede } = req.body;
+    const { fecha, sede, sede_id } = req.body;
     if (!fecha) return res.status(400).json({ error: 'Fecha requerida' });
+
+    let depot = null;
+    let sedeNombre = sede || null;
+
+    if (sede_id) {
+      const sedeRow = await pool.query('SELECT nombre, latitud, longitud FROM logistics.sedes WHERE id=$1 AND activo=true', [sede_id]);
+      if (sedeRow.rows.length === 0) return res.status(404).json({ error: 'Sede no encontrada o inactiva' });
+      sedeNombre = sedeRow.rows[0].nombre;
+      if (sedeRow.rows[0].latitud && sedeRow.rows[0].longitud) {
+        depot = { lat: sedeRow.rows[0].latitud, lng: sedeRow.rows[0].longitud };
+      }
+    }
 
     const pedidos = await pool.query(
       `SELECT id, latitud, longitud, peso_estimado, volumen_estimado
@@ -50,7 +62,7 @@ router.post('/generar', async (req, res) => {
     if (vehiculos.rows.length === 0) return res.status(400).json({ error: 'No hay vehículos disponibles' });
 
     const osrmUrl = process.env.OSRM_URL || 'https://router.project-osrm.org';
-    const resultado = await generarRutasOptimizadas(pedidos.rows, vehiculos.rows, osrmUrl);
+    const resultado = await generarRutasOptimizadas(pedidos.rows, vehiculos.rows, osrmUrl, depot);
 
     if (!resultado.exitosa) return res.status(500).json({ error: resultado.error });
 
@@ -62,7 +74,7 @@ router.post('/generar', async (req, res) => {
         `INSERT INTO logistics.rutas (nombre, fecha, vehiculo_id, sede, distancia_total_estimada,
          tiempo_estimado, estado, cantidad_paradas)
          VALUES ($1,$2,$3,$4,$5,$6,'planificada',$7) RETURNING *`,
-        [nombre, fecha, r.vehiculoId, sede || null, r.distancia, r.duracion, r.paradas.length]
+        [nombre, fecha, r.vehiculoId, sedeNombre, r.distancia, r.duracion, r.paradas.length]
       );
       const rutaId = nuevaRuta.rows[0].id;
 

@@ -262,6 +262,9 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
       <div class="nav-item" data-page="clientes" onclick="navigate('clientes')">
         <span class="icon">👤</span> Clientes
       </div>
+      <div class="nav-item" data-page="sedes" onclick="navigate('sedes')">
+        <span class="icon">🏢</span> Sedes
+      </div>
       <div class="nav-item" data-page="rutas" onclick="navigate('rutas')">
         <span class="icon">🗺️</span> Rutas
       </div>
@@ -403,12 +406,15 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           <div><h3>Rutas</h3><p>Rutas optimizadas y planificadas</p></div>
           <div class="flex gap-sm">
             <input type="date" id="filtro-fecha" onchange="cargarRutas()" style="width:auto;">
+            <select id="filtro-rutas-sede" style="width:auto;max-width:180px;" onchange="cargarRutas()">
+              <option value="">Todas las sedes</option>
+            </select>
             <button class="btn btn-primary btn-sm" onclick="generarRutas()">⚡ Generar rutas</button>
           </div>
         </div>
         <div class="tbl-wrap">
           <table class="tbl" id="tbl-rutas"><thead><tr>
-            <th>Nombre</th><th>Vehículo</th><th>Paradas</th><th>Distancia</th><th>Tiempo</th><th>Estado</th><th>Fecha</th><th style="width:80px"></th>
+            <th>Nombre</th><th>Vehículo</th><th>Sede</th><th>Paradas</th><th>Distancia</th><th>Tiempo</th><th>Estado</th><th>Fecha</th><th style="width:80px"></th>
           </tr></thead><tbody></tbody></table>
         </div>
       </div>
@@ -446,6 +452,27 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         </div>
         <div class="cli-grid" id="cli-grid">
           <div class="text-center text-muted" style="padding:32px;grid-column:1/-1;">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- Sedes -->
+      <div class="page" id="page-sedes">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>Sedes</h3><p>Ubicaciones y puntos de partida para las rutas</p></div>
+          <div class="flex gap-sm" style="flex-wrap:wrap;">
+            <div style="position:relative;min-width:160px;">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
+              <input type="text" id="filtro-sedes" placeholder="Buscar sede..."
+                     oninput="cargarSedes()"
+                     style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalSede()">+ Nueva sede</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-sedes"><thead><tr>
+            <th>Nombre</th><th>Ciudad</th><th>Dirección</th><th>Teléfono</th><th>Coordenadas</th><th>Estado</th><th style="width:80px"></th>
+          </tr></thead><tbody></tbody></table>
         </div>
       </div>
 

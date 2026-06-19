@@ -47,6 +47,7 @@ import backupRoutes from './routes/backup.js';
 import auditoriaRoutes from './routes/auditoria.js';
 import actualizadorRoutes from './routes/actualizador.js';
 import clientesRoutes from './routes/clientes.js';
+import sedesRoutes from './routes/sedes.js';
 
 // Rutas públicas
 app.use('/api/auth', authRoutes);
@@ -63,6 +64,7 @@ app.use('/api/backup', verificarToken, backupRoutes);
 app.use('/api/auditoria', verificarToken, auditoriaRoutes);
 app.use('/api/actualizador', verificarToken, actualizadorRoutes);
 app.use('/api/clientes', verificarToken, clientesRoutes);
+app.use('/api/sedes', verificarToken, sedesRoutes);
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 // Version endpoint

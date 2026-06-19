@@ -193,14 +193,14 @@ export class VRPSolver {
    * @param {Array} vehiculos [{id, lat, lng, capacidad}, ...]
    * @returns {Object} {rutas: [{vehiculo, paradas: [{...}]}]}
    */
-  async optimizarRutasMultiVehiculos(pedidos, vehiculos) {
+  async optimizarRutasMultiVehiculos(pedidos, vehiculos, depot) {
     try {
       // Paso 1: Construir todos los puntos (depósito + pedidos)
       const todosLosPuntos = vehiculos.map(v => ({
         tipo: 'deposito',
         vehiculoId: v.id,
-        lat: v.lat,
-        lng: v.lng,
+        lat: depot ? depot.lat : v.lat,
+        lng: depot ? depot.lng : v.lng,
         index: -1
       }));
 
@@ -244,7 +244,7 @@ export class VRPSolver {
         if (pedidosVehiculo.length === 0) continue;
 
         const puntosRuta = [
-          { lat: vehiculo.lat, lng: vehiculo.lng }, // Depósito
+          { lat: depot ? depot.lat : vehiculo.lat, lng: depot ? depot.lng : vehiculo.lng }, // Depósito
           ...pedidosVehiculo.map(p => ({ lat: p.lat, lng: p.lng }))
         ];
 
@@ -288,9 +288,9 @@ export class VRPSolver {
 /**
  * Export para uso simple
  */
-export async function generarRutasOptimizadas(pedidos, vehiculos, osrmUrl) {
+export async function generarRutasOptimizadas(pedidos, vehiculos, osrmUrl, depot) {
   const osrm = new OSRMClient(osrmUrl);
   const solver = new VRPSolver(osrm);
 
-  return await solver.optimizarRutasMultiVehiculos(pedidos, vehiculos);
+  return await solver.optimizarRutasMultiVehiculos(pedidos, vehiculos, depot);
 }

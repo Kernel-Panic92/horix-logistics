@@ -121,6 +121,7 @@ function navigate(page) {
   else if (page === 'config') cargarConfig();
   else if (page === 'mapa') cargarMapa();
   else if (page === 'clientes') cargarClientes();
+  else if (page === 'sedes') cargarSedes();
 }
 
 /* ── Init ── */
@@ -246,7 +247,7 @@ function abrirModalVehiculo(data) {
       <div class="form-grid">
         <div class="form-group"><label>Placa *</label><input id="v-placa" value="${d.placa||''}" placeholder="TVD921"></div>
         <div class="form-group"><label>Alias</label><input id="v-alias" value="${d.alias||''}" placeholder="TVD921"></div>
-        <div class="form-group"><label>Sede</label><input id="v-sede" value="${d.sede||''}" placeholder="Medellín"></div>
+        <div class="form-group"><label>Sede</label><select id="v-sede" data-sede="${d.sede||''}"><option value="">Cargando...</option></select></div>
         <div class="form-group"><label>Capacidad peso (kg)</label><input type="number" id="v-peso" value="${d.capacidad_peso||5000}"></div>
         <div class="form-group"><label>Capacidad volumen (m³)</label><input type="number" step="0.1" id="v-vol" value="${d.capacidad_volumen||20}"></div>
         <div class="form-group"><label>Estado</label><select id="v-estado">
@@ -259,6 +260,19 @@ function abrirModalVehiculo(data) {
     `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
      <button class="btn btn-primary" onclick="${data ? 'guardarVehiculo('+d.id+')' : 'guardarVehiculo()'}">${data ? 'Guardar cambios' : 'Crear vehículo'}</button>`
   );
+  setTimeout(poblarSedesVehiculo, 100);
+}
+
+async function poblarSedesVehiculo() {
+  const select = document.getElementById('v-sede');
+  if (!select) return;
+  try {
+    const data = await api('/sedes');
+    const sedes = data.sedes || [];
+    const sedeActual = select.dataset.sede || '';
+    select.innerHTML = '<option value="">— Sin sede —</option>' +
+      sedes.map(s => `<option value="${esc(s.nombre)}" ${s.nombre===sedeActual?'selected':''}>${esc(s.nombre)}</option>`).join('');
+  } catch { select.innerHTML = '<option value="">Error al cargar</option>'; }
 }
 
 function editarVehiculo(id) {
@@ -480,16 +494,89 @@ async function guardarCliente(id) {
   } catch (e) { alert(e.message); }
 }
 
+/* ── CRUD: Sedes ── */
+async function cargarSedes() {
+  const tbody = document.querySelector('#tbl-sedes tbody');
+  const filtro = document.getElementById('filtro-sedes').value.trim();
+  try {
+    const data = await api('/sedes' + (filtro ? '?q=' + encodeURIComponent(filtro) : ''));
+    if (!data.sedes?.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No hay sedes registradas</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.sedes.map(s => `<tr>
+      <td><strong>${esc(s.nombre)}</strong></td>
+      <td>${esc(s.ciudad || '—')}</td>
+      <td>${esc(s.direccion || '—')}</td>
+      <td>${esc(s.telefono || '—')}</td>
+      <td>${s.latitud && s.longitud ? s.latitud.toFixed(4)+', '+s.longitud.toFixed(4) : '—'}</td>
+      <td><span class="badge badge-${s.activo ? 'success' : 'danger'}">${s.activo ? 'Activo' : 'Inactivo'}</span></td>
+      <td><button class="btn btn-sm btn-secondary" onclick="editarSede(${s.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('sede',${s.id},'${esc(s.nombre)}')" title="Eliminar">🗑️</button></td>
+    </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">Error al cargar</td></tr>';
+  }
+}
+
+function abrirModalSede(data) {
+  const d = data || {};
+  abrirModal(
+    data ? 'Editar sede' : 'Nueva sede',
+    data ? 'Actualiza los datos de la sede' : 'Registra una nueva ubicación o punto de partida',
+    `<div class="form-grid">
+        <div class="form-group"><label>Nombre *</label><input id="s-nombre" value="${d.nombre||''}" placeholder="Medellín Centro"></div>
+        <div class="form-group"><label>Ciudad</label><input id="s-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
+        <div class="form-group"><label>Dirección</label><input id="s-direccion" value="${d.direccion||''}" placeholder="Carrera 50 #45-12"></div>
+        <div class="form-group"><label>Teléfono</label><input id="s-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
+        <div class="form-group"><label>Latitud</label><input type="number" step="any" id="s-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
+        <div class="form-group"><label>Longitud</label><input type="number" step="any" id="s-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
+        ${data ? `<div class="form-group"><label>Activo</label><select id="s-activo">
+          <option value="true" ${d.activo!==false?'selected':''}>Activo</option>
+          <option value="false" ${d.activo===false?'selected':''}>Inactivo</option>
+        </select></div>` : ''}
+      </div>`,
+    `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="${data ? 'guardarSede('+d.id+')' : 'guardarSede()'}">${data ? 'Guardar cambios' : 'Crear sede'}</button>`
+  );
+}
+
+function editarSede(id) {
+  api('/sedes/' + id).then(d => abrirModalSede(d.sede)).catch(e => alert(e.message));
+}
+
+async function guardarSede(id) {
+  const body = {
+    nombre: document.getElementById('s-nombre').value.trim(),
+    ciudad: document.getElementById('s-ciudad').value.trim(),
+    direccion: document.getElementById('s-direccion').value.trim(),
+    telefono: document.getElementById('s-telefono').value.trim(),
+    latitud: document.getElementById('s-lat').value ? +document.getElementById('s-lat').value : null,
+    longitud: document.getElementById('s-lng').value ? +document.getElementById('s-lng').value : null
+  };
+  if (id) {
+    const activoEl = document.getElementById('s-activo');
+    if (activoEl) body.activo = activoEl.value === 'true';
+  }
+  if (!body.nombre) { alert('El nombre es requerido'); return; }
+  try {
+    if (id) await api('/sedes/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else await api('/sedes', { method: 'POST', body: JSON.stringify(body) });
+    cerrarModal();
+    cargarSedes();
+  } catch (e) { alert(e.message); }
+}
+
 /* ── Eliminar (genérico) ── */
 function confirmarEliminar(tipo, id, label) {
   if (!confirm(label ? `¿Eliminar ${tipo} "${label}"?` : `¿Eliminar ${tipo} #${id}?`)) return;
-  const endpoints = { vehiculo: '/vehiculos/', pedido: '/pedidos/', cliente: '/clientes/' };
+  const endpoints = { vehiculo: '/vehiculos/', pedido: '/pedidos/', cliente: '/clientes/', sede: '/sedes/' };
   const ep = endpoints[tipo];
   if (!ep) return;
   api(ep + id, { method: 'DELETE' }).then(() => {
     if (tipo === 'vehiculo') cargarVehiculos();
     else if (tipo === 'pedido') cargarPedidos();
     else if (tipo === 'cliente') cargarClientes();
+    else if (tipo === 'sede') cargarSedes();
   }).catch(e => alert(e.message));
 }
 
@@ -529,13 +616,19 @@ async function eliminarSeleccionados(tipo) {
 async function cargarRutas() {
   const tbody = document.querySelector('#tbl-rutas tbody');
   const fecha = document.getElementById('filtro-fecha').value;
+  const sede = document.getElementById('filtro-rutas-sede')?.value || '';
+  poblarSedesRutas();
   try {
-    const data = await api('/rutas' + (fecha ? '?fecha=' + fecha : ''));
-    if (!data.rutas?.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay rutas para esta fecha</td></tr>'; return; }
+    const params = new URLSearchParams();
+    if (fecha) params.set('fecha', fecha);
+    if (sede) params.set('sede', sede);
+    const data = await api('/rutas?' + params.toString());
+    if (!data.rutas?.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:32px;">No hay rutas para esta fecha</td></tr>'; return; }
     tbody.innerHTML = data.rutas.map(r => `
       <tr>
         <td><strong>${r.nombre || 'Ruta #'+r.id}</strong></td>
         <td>${r.placa || '—'}</td>
+        <td>${r.sede || '—'}</td>
         <td>${r.cantidad_paradas || 0}</td>
         <td>${r.distancia_total_estimada ? r.distancia_total_estimada+' km' : '—'}</td>
         <td>${r.tiempo_estimado ? r.tiempo_estimado+' min' : '—'}</td>
@@ -545,8 +638,20 @@ async function cargarRutas() {
       </tr>
     `).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error al cargar</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error al cargar</td></tr>';
   }
+}
+
+let _sedesCache = null;
+async function poblarSedesRutas() {
+  const select = document.getElementById('filtro-rutas-sede');
+  if (!select) return;
+  try {
+    if (!_sedesCache) { const d = await api('/sedes'); _sedesCache = d.sedes || []; }
+    const actual = select.value;
+    select.innerHTML = '<option value="">Todas las sedes</option>' +
+      _sedesCache.map(s => `<option value="${esc(s.nombre)}" ${s.nombre===actual?'selected':''}>${esc(s.nombre)}</option>`).join('');
+  } catch {}
 }
 
 async function verRuta(id) {
@@ -594,9 +699,19 @@ function cerrarRutaDetalle() {
 async function generarRutas() {
   const fecha = document.getElementById('filtro-fecha').value;
   if (!fecha) { alert('Selecciona una fecha'); return; }
-  if (!confirm('¿Generar rutas optimizadas para ' + fecha + '?')) return;
+  const sedeSelect = document.getElementById('filtro-rutas-sede');
+  const sedeNombre = sedeSelect?.value || '';
+  let sedeId = null;
+  if (sedeNombre && _sedesCache) {
+    const s = _sedesCache.find(x => x.nombre === sedeNombre);
+    if (s) sedeId = s.id;
+  }
+  const msg = '¿Generar rutas optimizadas para ' + fecha + (sedeNombre ? ' (' + sedeNombre + ')' : '') + '?';
+  if (!confirm(msg)) return;
   try {
-    const data = await api('/rutas/generar', { method: 'POST', body: JSON.stringify({ fecha }) });
+    const body = { fecha };
+    if (sedeId) body.sede_id = sedeId;
+    const data = await api('/rutas/generar', { method: 'POST', body: JSON.stringify(body) });
     alert(data.mensaje || 'Rutas generadas');
     cargarRutas();
   } catch (e) { alert(e.message); }
