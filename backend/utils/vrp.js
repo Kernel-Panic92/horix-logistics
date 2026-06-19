@@ -26,6 +26,7 @@ export class OSRMClient {
         .join(';');
 
       const url = `${this.baseUrl}/table/v1/driving/${coordenadas}`;
+      console.log('[OSRM] Solicitud:', url);
 
       const response = await axios.get(url, {
         params: {
@@ -33,6 +34,8 @@ export class OSRMClient {
         },
         timeout: 30000
       });
+
+      console.log('[OSRM] Respuesta:', response.data.code, response.data.message || '');
 
       if (response.data.code === 'Ok') {
         return {
@@ -195,20 +198,26 @@ export class VRPSolver {
    */
   async optimizarRutasMultiVehiculos(pedidos, vehiculos, depot) {
     try {
+      console.log('[VRP] depot:', depot);
+      console.log('[VRP] vehiculos recibidos:', vehiculos.length);
+
       // Filtrar solo pedidos con coordenadas válidas
       const pedidosValidos = pedidos.filter(p => p.lat != null && p.lng != null && !isNaN(p.lat) && !isNaN(p.lng));
+      console.log('[VRP] pedidos válidos:', pedidosValidos.length);
       if (pedidosValidos.length === 0) {
         return { exitosa: false, error: 'No hay pedidos con coordenadas válidas para generar rutas' };
       }
 
       // Filtrar vehículos con coordenadas o usar depot
       const vehiculosConPos = vehiculos.filter(v => v.lat != null && v.lng != null && !isNaN(v.lat) && !isNaN(v.lng));
+      console.log('[VRP] vehículos con posición:', vehiculosConPos.length);
       if (vehiculosConPos.length === 0 && (!depot || depot.lat == null || depot.lng == null)) {
         return { exitosa: false, error: 'No hay vehículos con posición ni depot con coordenadas' };
       }
 
       // Paso 1: Construir todos los puntos (depósito + pedidos)
-      const todosLosPuntos = (vehiculosConPos.length ? vehiculosConPos : vehiculos).map(v => ({
+      const vehiculosUsar = vehiculosConPos.length ? vehiculosConPos : vehiculos;
+      const todosLosPuntos = vehiculosUsar.map(v => ({
         tipo: 'deposito',
         vehiculoId: v.id,
         lat: depot ? depot.lat : v.lat,
@@ -225,6 +234,8 @@ export class VRPSolver {
           index: idx
         });
       });
+
+      console.log('[VRP] Total puntos para OSRM:', todosLosPuntos.length);
 
       // Validar que todos los puntos sean válidos antes de enviar a OSRM
       const puntos = todosLosPuntos.map(p => ({ lat: p.lat, lng: p.lng }));

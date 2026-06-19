@@ -79,7 +79,9 @@ router.post('/generar', async (req, res) => {
     if (vehiculos.rows.length === 0) return res.status(400).json({ error: 'No hay vehículos disponibles' });
 
     const osrmUrl = process.env.OSRM_URL || 'https://router.project-osrm.org';
+    console.log('[rutas/generar] depot:', depot, 'pedidos:', pedidos.rows.length, 'vehiculos:', vehiculos.rows.length);
     const resultado = await generarRutasOptimizadas(pedidos.rows, vehiculos.rows, osrmUrl, depot);
+    console.log('[rutas/generar] resultado:', resultado);
 
     if (!resultado.exitosa) return res.status(500).json({ error: resultado.error });
 
