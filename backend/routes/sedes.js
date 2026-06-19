@@ -34,12 +34,12 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { nombre, direccion, ciudad, latitud, longitud, telefono } = req.body;
+    const { nombre, direccion, ciudad, latitud, longitud, telefono, centro_operacion } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
     const result = await pool.query(
-      `INSERT INTO logistics.sedes (nombre, direccion, ciudad, latitud, longitud, telefono)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [nombre, direccion || null, ciudad || null, latitud || null, longitud || null, telefono || null]
+      `INSERT INTO logistics.sedes (nombre, direccion, ciudad, latitud, longitud, telefono, centro_operacion)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [nombre, direccion || null, ciudad || null, latitud || null, longitud || null, telefono || null, centro_operacion || null]
     );
     res.status(201).json({ exitosa: true, sede: result.rows[0] });
   } catch (err) {
@@ -50,17 +50,18 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { nombre, direccion, ciudad, latitud, longitud, telefono, activo } = req.body;
+    const { nombre, direccion, ciudad, latitud, longitud, telefono, activo, centro_operacion } = req.body;
     const result = await pool.query(
       `UPDATE logistics.sedes SET nombre=COALESCE($1,nombre), direccion=$2, ciudad=$3,
-       latitud=$4, longitud=$5, telefono=$6, activo=COALESCE($7,activo), updated_at=CURRENT_TIMESTAMP
-       WHERE id=$8 RETURNING *`,
+       latitud=$4, longitud=$5, telefono=$6, activo=COALESCE($7,activo),
+       centro_operacion=$8, updated_at=CURRENT_TIMESTAMP WHERE id=$9 RETURNING *`,
       [nombre || null, direccion !== undefined ? direccion : undefined,
        ciudad !== undefined ? ciudad : undefined,
        latitud !== undefined ? latitud : undefined,
        longitud !== undefined ? longitud : undefined,
        telefono !== undefined ? telefono : undefined,
        activo !== undefined ? activo : undefined,
+       centro_operacion !== undefined ? centro_operacion : undefined,
        req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Sede no encontrada' });

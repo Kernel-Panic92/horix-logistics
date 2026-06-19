@@ -501,11 +501,12 @@ async function cargarSedes() {
   try {
     const data = await api('/sedes' + (filtro ? '?q=' + encodeURIComponent(filtro) : ''));
     if (!data.sedes?.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No hay sedes registradas</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay sedes registradas</td></tr>';
       return;
     }
     tbody.innerHTML = data.sedes.map(s => `<tr>
       <td><strong>${esc(s.nombre)}</strong></td>
+      <td>${esc(s.centro_operacion || '—')}</td>
       <td>${esc(s.ciudad || '—')}</td>
       <td>${esc(s.direccion || '—')}</td>
       <td>${esc(s.telefono || '—')}</td>
@@ -514,7 +515,7 @@ async function cargarSedes() {
       <td><button class="btn btn-sm btn-secondary" onclick="editarSede(${s.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('sede',${s.id},'${esc(s.nombre)}')" title="Eliminar">🗑️</button></td>
     </tr>`).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">Error al cargar</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">Error al cargar</td></tr>';
   }
 }
 
@@ -525,6 +526,7 @@ function abrirModalSede(data) {
     data ? 'Actualiza los datos de la sede' : 'Registra una nueva ubicación o punto de partida',
     `<div class="form-grid">
         <div class="form-group"><label>Nombre *</label><input id="s-nombre" value="${d.nombre||''}" placeholder="Medellín Centro"></div>
+        <div class="form-group"><label>Centro de Operación</label><input id="s-centro" value="${d.centro_operacion||''}" placeholder="Norte, Sur, Este, Oeste..."></div>
         <div class="form-group"><label>Ciudad</label><input id="s-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
         <div class="form-group"><label>Dirección</label><input id="s-direccion" value="${d.direccion||''}" placeholder="Carrera 50 #45-12"></div>
         <div class="form-group"><label>Teléfono</label><input id="s-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
@@ -548,6 +550,7 @@ function editarSede(id) {
 async function guardarSede(id) {
   const body = {
     nombre: document.getElementById('s-nombre').value.trim(),
+    centro_operacion: document.getElementById('s-centro').value.trim(),
     ciudad: document.getElementById('s-ciudad').value.trim(),
     direccion: document.getElementById('s-direccion').value.trim(),
     telefono: document.getElementById('s-telefono').value.trim(),
