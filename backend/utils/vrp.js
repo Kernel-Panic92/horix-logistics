@@ -195,8 +195,20 @@ export class VRPSolver {
    */
   async optimizarRutasMultiVehiculos(pedidos, vehiculos, depot) {
     try {
+      // Filtrar solo pedidos con coordenadas válidas
+      const pedidosValidos = pedidos.filter(p => p.lat != null && p.lng != null && !isNaN(p.lat) && !isNaN(p.lng));
+      if (pedidosValidos.length === 0) {
+        return { exitosa: false, error: 'No hay pedidos con coordenadas válidas para generar rutas' };
+      }
+
+      // Filtrar vehículos con coordenadas o usar depot
+      const vehiculosConPos = vehiculos.filter(v => v.lat != null && v.lng != null && !isNaN(v.lat) && !isNaN(v.lng));
+      if (vehiculosConPos.length === 0 && (!depot || depot.lat == null || depot.lng == null)) {
+        return { exitosa: false, error: 'No hay vehículos con posición ni depot con coordenadas' };
+      }
+
       // Paso 1: Construir todos los puntos (depósito + pedidos)
-      const todosLosPuntos = vehiculos.map(v => ({
+      const todosLosPuntos = (vehiculosConPos.length ? vehiculosConPos : vehiculos).map(v => ({
         tipo: 'deposito',
         vehiculoId: v.id,
         lat: depot ? depot.lat : v.lat,
@@ -204,7 +216,7 @@ export class VRPSolver {
         index: -1
       }));
 
-      pedidos.forEach((p, idx) => {
+      pedidosValidos.forEach((p, idx) => {
         todosLosPuntos.push({
           tipo: 'pedido',
           id: p.id,
@@ -214,8 +226,13 @@ export class VRPSolver {
         });
       });
 
-      // Paso 2: Calcular matriz de distancias para todos los puntos
+      // Validar que todos los puntos sean válidos antes de enviar a OSRM
       const puntos = todosLosPuntos.map(p => ({ lat: p.lat, lng: p.lng }));
+      if (puntos.some(p => isNaN(p.lat) || isNaN(p.lng))) {
+        return { exitosa: false, error: 'Hay coordenadas inválidas en los puntos' };
+      }
+
+      // Paso 2: Calcular matriz de distancias para todos los puntos
       const matriz = await this.osrm.calcularMatriz(puntos);
 
       if (!matriz.exitosa) {
@@ -224,13 +241,14 @@ export class VRPSolver {
 
       // Paso 3: Asignar pedidos a vehículos (simple: round-robin)
       const rutasPorVehiculo = {};
-      vehiculos.forEach(v => {
+      const vehiculosUsar = vehiculosConPos.length ? vehiculosConPos : vehiculos;
+      vehiculosUsar.forEach(v => {
         rutasPorVehiculo[v.id] = [];
       });
 
       let vehiculoIdx = 0;
-      for (const pedido of pedidos) {
-        const vehiculo = vehiculos[vehiculoIdx % vehiculos.length];
+      for (const pedido of pedidosValidos) {
+        const vehiculo = vehiculosUsar[vehiculoIdx % vehiculosUsar.length];
         rutasPorVehiculo[vehiculo.id].push(pedido);
         vehiculoIdx++;
       }
@@ -238,7 +256,7 @@ export class VRPSolver {
       // Paso 4: Optimizar cada ruta individual
       const rutas = [];
 
-      for (const vehiculo of vehiculos) {
+      for (const vehiculo of vehiculosUsar) {
         const pedidosVehiculo = rutasPorVehiculo[vehiculo.id];
 
         if (pedidosVehiculo.length === 0) continue;

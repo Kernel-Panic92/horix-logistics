@@ -19,6 +19,23 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/diagnostico', async (req, res) => {
+  try {
+    const pedidosTodos = await pool.query(`SELECT id, numero_factura, estado, ruta_id, latitud, longitud FROM logistics.pedidos_logistica ORDER BY id`);
+    const pedidosPendientesSinRuta = await pool.query(`SELECT id, numero_factura, latitud, longitud FROM logistics.pedidos_logistica WHERE estado='pendiente' AND ruta_id IS NULL`);
+    const pedidosConCoords = await pool.query(`SELECT id, numero_factura FROM logistics.pedidos_logistica WHERE estado='pendiente' AND ruta_id IS NULL AND latitud IS NOT NULL AND longitud IS NOT NULL`);
+    const vehiculosDisponibles = await pool.query(`SELECT id, placa, estado, ultima_posicion_lat, ultima_posicion_lng FROM logistics.vehiculos WHERE estado='disponible'`);
+    res.json({
+      pedidos_total: pedidosTodos.rows.length,
+      pedidos_pendientes_sin_ruta: pedidosPendientesSinRuta.rows,
+      pedidos_pendientes_con_coords: pedidosConCoords.rows,
+      vehiculos_disponibles: vehiculosDisponibles.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const ruta = await pool.query('SELECT * FROM logistics.rutas WHERE id=$1', [req.params.id]);
