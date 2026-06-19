@@ -538,6 +538,7 @@ function abrirModalSede(data) {
     `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
      <button class="btn btn-primary" onclick="${data ? 'guardarSede('+d.id+')' : 'guardarSede()'}">${data ? 'Guardar cambios' : 'Crear sede'}</button>`
   );
+  setTimeout(configurarAutocompleteSede, 100);
 }
 
 function editarSede(id) {
@@ -1478,6 +1479,42 @@ function configurarAutocompleteCliente() {
         break;
       } else if (comp.types.includes('administrative_area_level_1')) {
         document.getElementById('c-ciudad').value = comp.long_name;
+      }
+    }
+    if (place.formatted_address) input.value = place.formatted_address;
+  });
+}
+
+function configurarAutocompleteSede() {
+  if (typeof google === 'undefined' || !window.googleMapsListo) {
+    const input = document.getElementById('s-direccion');
+    if (input && !input._aviso) {
+      input._aviso = true;
+      input.placeholder = '🔑 Configura API Key en Ajustes → Mapas';
+      input.title = 'Ve a Configuración → Mapas para ingresar tu API key de Google Maps';
+    }
+    return;
+  }
+  const input = document.getElementById('s-direccion');
+  if (!input || input._autocomplete) return;
+
+  const ac = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'co' },
+    fields: ['address_components', 'formatted_address', 'geometry', 'name']
+  });
+  input._autocomplete = true;
+
+  ac.addListener('place_changed', () => {
+    const place = ac.getPlace();
+    if (!place.geometry) return;
+    document.getElementById('s-lat').value = place.geometry.location.lat();
+    document.getElementById('s-lng').value = place.geometry.location.lng();
+    for (const comp of place.address_components || []) {
+      if (comp.types.includes('locality') || comp.types.includes('administrative_area_level_2')) {
+        document.getElementById('s-ciudad').value = comp.long_name;
+        break;
+      } else if (comp.types.includes('administrative_area_level_1')) {
+        document.getElementById('s-ciudad').value = comp.long_name;
       }
     }
     if (place.formatted_address) input.value = place.formatted_address;
