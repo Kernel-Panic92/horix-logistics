@@ -1480,8 +1480,10 @@ function configurarAutocompleteCliente() {
   ac.addListener('place_changed', () => {
     const place = ac.getPlace();
     if (!place.geometry) return;
-    document.getElementById('c-lat').value = place.geometry.location.lat();
-    document.getElementById('c-lng').value = place.geometry.location.lng();
+    const lat = place.geometry.location.lat();
+    const lng = place.geometry.location.lng();
+    document.getElementById('c-lat').value = lat;
+    document.getElementById('c-lng').value = lng;
     for (const comp of place.address_components || []) {
       if (comp.types.includes('locality') || comp.types.includes('administrative_area_level_2')) {
         document.getElementById('c-ciudad').value = comp.long_name;
@@ -1491,6 +1493,7 @@ function configurarAutocompleteCliente() {
       }
     }
     if (place.formatted_address) input.value = place.formatted_address;
+    actualizarMapaPin('mapa-pin-cliente', lat, lng);
   });
 }
 
@@ -1516,8 +1519,10 @@ function configurarAutocompleteSede() {
   ac.addListener('place_changed', () => {
     const place = ac.getPlace();
     if (!place.geometry) return;
-    document.getElementById('s-lat').value = place.geometry.location.lat();
-    document.getElementById('s-lng').value = place.geometry.location.lng();
+    const lat = place.geometry.location.lat();
+    const lng = place.geometry.location.lng();
+    document.getElementById('s-lat').value = lat;
+    document.getElementById('s-lng').value = lng;
     for (const comp of place.address_components || []) {
       if (comp.types.includes('locality') || comp.types.includes('administrative_area_level_2')) {
         document.getElementById('s-ciudad').value = comp.long_name;
@@ -1527,6 +1532,7 @@ function configurarAutocompleteSede() {
       }
     }
     if (place.formatted_address) input.value = place.formatted_address;
+    actualizarMapaPin('mapa-pin-sede', lat, lng);
   });
 }
 
@@ -1542,25 +1548,40 @@ function initMapaPin(containerId, latInputId, lngInputId) {
   container._leafletMap = map;
   window._activeModalMap = map;
 
-  let marker = null;
   if (hasCoords) {
-    marker = L.marker(center, { draggable: true }).addTo(map);
-    marker.on('dragend', () => {
-      const pos = marker.getLatLng();
+    L.marker(center, { draggable: true }).addTo(map).on('dragend', (e) => {
+      const pos = e.target.getLatLng();
       document.getElementById(latInputId).value = pos.lat.toFixed(8);
       document.getElementById(lngInputId).value = pos.lng.toFixed(8);
     });
   }
+
   map.on('click', (e) => {
-    if (marker) marker.setLatLng(e.latlng);
-    else { marker = L.marker(e.latlng, { draggable: true }).addTo(map); }
+    map.eachLayer((l) => { if (l instanceof L.Marker) map.removeLayer(l); });
+    const m = L.marker(e.latlng, { draggable: true }).addTo(map);
     document.getElementById(latInputId).value = e.latlng.lat.toFixed(8);
     document.getElementById(lngInputId).value = e.latlng.lng.toFixed(8);
-    marker.on('dragend', () => {
-      const pos = marker.getLatLng();
+    m.on('dragend', () => {
+      const pos = m.getLatLng();
       document.getElementById(latInputId).value = pos.lat.toFixed(8);
       document.getElementById(lngInputId).value = pos.lng.toFixed(8);
     });
+  });
+}
+
+function actualizarMapaPin(containerId, lat, lng) {
+  const container = document.getElementById(containerId);
+  if (!container || !container._leafletMap) return;
+  const map = container._leafletMap;
+  map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
+  const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+  map.setView([lat, lng], 16);
+  marker.on('dragend', () => {
+    const pos = marker.getLatLng();
+    const latInputId = containerId === 'mapa-pin-cliente' ? 'c-lat' : 's-lat';
+    const lngInputId = containerId === 'mapa-pin-cliente' ? 'c-lng' : 's-lng';
+    document.getElementById(latInputId).value = pos.lat.toFixed(8);
+    document.getElementById(lngInputId).value = pos.lng.toFixed(8);
   });
 }
 
