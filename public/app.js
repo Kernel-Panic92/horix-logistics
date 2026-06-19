@@ -806,13 +806,7 @@ function renderSmtp(el, c) {
           <input id="cfg-launcher-url" value="${esc(c.launcher_url||'http://localhost:3002')}" placeholder="http://localhost:3002" style="width:100%;padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
         </div>
       </div>
-      <div style="margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
-          <input type="checkbox" id="cfg-plantilla-heredar" ${c.plantilla_heredar==='1'||c.plantilla_heredar==='true'?'checked':''}>
-          Heredar plantillas del Launcher
-        </label>
-        <div style="font-size:12px;color:var(--muted);margin-top:6px;">Al activarlo, las plantillas de correo se obtendrán del Launcher (recuperación de contraseña, etc.)</div>
-      </div>
+
       <div id="cfg-smtp-local" style="${heredar?'opacity:0.5;pointer-events:none;':''}">
         <div class="form-grid">
           <div class="form-group"><label>Host SMTP</label><input id="cfg-host" value="${esc(c.smtp_host||'')}" placeholder="smtp.gmail.com"></div>
@@ -843,8 +837,7 @@ async function guardarSmtp() {
   try {
     const body = {
       smtp_heredar: document.getElementById('cfg-heredar').checked ? '1' : '0',
-      launcher_url: document.getElementById('cfg-launcher-url').value.trim(),
-      plantilla_heredar: document.getElementById('cfg-plantilla-heredar').checked ? '1' : '0'
+      launcher_url: document.getElementById('cfg-launcher-url').value.trim()
     };
     if (body.smtp_heredar !== '1') {
       body.smtp_host = document.getElementById('cfg-host').value.trim();
