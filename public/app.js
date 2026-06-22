@@ -688,7 +688,8 @@ function actualizarBtnEliminar(tipo) {
   const checks = document.querySelectorAll('.cb-' + tipo + ':checked');
   const btn = document.getElementById('btn-del-' + tipo);
   if (btn) btn.style.display = checks.length > 0 ? 'inline-flex' : 'none';
-  // Sync "Seleccionar todo" for clientes
+  const btnAss = document.getElementById('btn-assign-' + tipo);
+  if (btnAss) btnAss.style.display = checks.length > 0 ? 'inline-flex' : 'none';
   if (tipo === 'cliente') {
     const total = document.querySelectorAll('.cb-cliente').length;
     const selAll = document.querySelector('#page-clientes input[onchange*="toggleAll"]');
@@ -699,6 +700,76 @@ function actualizarBtnEliminar(tipo) {
 function toggleAll(tipo, checked) {
   document.querySelectorAll('.cb-' + tipo).forEach(cb => cb.checked = checked);
   actualizarBtnEliminar(tipo);
+}
+
+async function asignarMasivoPedido() {
+  const checks = document.querySelectorAll('.cb-pedido:checked');
+  if (!checks.length) return;
+  const ids = Array.from(checks).map(c => +c.value);
+
+  if (!_sedesCache) {
+    const res = await api('/sedes');
+    _sedesCache = res.sedes || [];
+  }
+  if (!_vehiculosCache) {
+    const res = await api('/vehiculos');
+    _vehiculosCache = res.vehiculos || [];
+  }
+
+  abrirModal(
+    'Asignación masiva',
+    `${ids.length} pedido(s) seleccionado(s)`,
+    `
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="form-group">
+          <label>Sede</label>
+          <select id="masivo-sede" onchange="filtrarVehiculosEnBulk()">
+            <option value="">— Sin cambio —</option>
+            ${_sedesCache.map(s => `<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Vehículo</label>
+          <select id="masivo-vehiculo">
+            <option value="">— Sin cambio —</option>
+          </select>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:0;">💡 Solo se actualizarán los pedidos que no estén asignados a una ruta.</p>
+      </div>
+    `,
+    `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="guardarAsignacionMasiva(${JSON.stringify(ids)})">Aplicar</button>`
+  );
+
+  filtrarVehiculosEnBulk();
+}
+
+async function guardarAsignacionMasiva(ids) {
+  const body = { ids };
+  const vehiculoEl = document.getElementById('masivo-vehiculo');
+  const sedeEl = document.getElementById('masivo-sede');
+  if (vehiculoEl.value) body.vehiculo_id = +vehiculoEl.value;
+  if (sedeEl.value) body.sede = sedeEl.value;
+  if (!body.vehiculo_id && !body.sede) { mostrarAlerta('Seleccione un vehículo o una sede', 'warning'); return; }
+
+  try {
+    const res = await api('/pedidos/asignar-masivo', { method: 'PUT', body: JSON.stringify(body) });
+    cerrarModal();
+    mostrarAlerta(res.mensaje, 'success');
+    cargarPedidos();
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
+}
+
+async function filtrarVehiculosEnBulk() {
+  const sede = document.getElementById('masivo-sede').value;
+  const sel = document.getElementById('masivo-vehiculo');
+  if (!sel) return;
+  let opts = '<option value="">— Sin cambio —</option>';
+  if (sede) {
+    const filtrados = _vehiculosCache.filter(v => v.sede === sede);
+    opts += filtrados.map(v => `<option value="${v.id}">${esc(v.placa)}${v.sede ? ' — '+esc(v.sede) : ''}</option>`).join('');
+  }
+  sel.innerHTML = opts;
 }
 
 async function eliminarSeleccionados(tipo) {

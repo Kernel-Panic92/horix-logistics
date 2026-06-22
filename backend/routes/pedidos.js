@@ -101,6 +101,38 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.put('/asignar-masivo', async (req, res) => {
+  try {
+    const { ids, vehiculo_id, sede } = req.body;
+    if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
+    if (!vehiculo_id && !sede) return res.status(400).json({ error: 'Debe proporcionar vehiculo_id o sede' });
+
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    params.push(ids);
+    idx++;
+    if (vehiculo_id) { sets.push(`vehiculo_id=$${idx++}`); params.push(vehiculo_id); }
+    if (sede) { sets.push(`sede=$${idx++}`); params.push(sede); }
+    sets.push('updated_at=CURRENT_TIMESTAMP');
+
+    const result = await pool.query(
+      `UPDATE logistics.pedidos_logistica SET ${sets.join(', ')} WHERE id = ANY($1::int[]) AND ruta_id IS NULL RETURNING id`,
+      params
+    );
+
+    const ignorados = ids.length - result.rows.length;
+    res.json({
+      exitosa: true,
+      actualizados: result.rows.length,
+      ignorados,
+      mensaje: `${result.rows.length} pedido(s) actualizado(s)${ignorados ? `, ${ignorados} ignorado(s) por estar en una ruta` : ''}`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/seleccionados', async (req, res) => {
   try {
     const { ids } = req.body;
