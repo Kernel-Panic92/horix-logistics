@@ -57,16 +57,43 @@ router.post('/generar', async (req, res) => {
     let depot = null;
     let sedeNombre = sede || null;
 
+    const rutaCol = tipo === 'moto' ? 'c.ruta_moto' : 'c.ruta';
+
+    // Auto-detectar sede desde la zona si no se especificó sede_id
+    if (ruta && !sede_id) {
+      const ciudadRow = await pool.query(
+        `SELECT c.ciudad, COUNT(*) AS cnt
+         FROM logistics.clientes c
+         WHERE ${rutaCol.replace('c.', 'c.')}=$1 AND c.ciudad IS NOT NULL AND c.ciudad!=''
+         GROUP BY c.ciudad ORDER BY cnt DESC LIMIT 1`,
+        [ruta]
+      );
+      if (ciudadRow.rows.length > 0) {
+        const ciudad = ciudadRow.rows[0].ciudad;
+        const sedeRow = await pool.query(
+          `SELECT id, nombre, latitud, longitud FROM logistics.sedes
+           WHERE (ciudad ILIKE $1 OR nombre ILIKE $1) AND activo=true LIMIT 1`,
+          [`%${ciudad}%`]
+        );
+        if (sedeRow.rows.length > 0) {
+          sedeNombre = sedeRow.rows[0].nombre;
+          if (sedeRow.rows[0].latitud && sedeRow.rows[0].longitud) {
+            depot = { lat: Number(sedeRow.rows[0].latitud), lng: Number(sedeRow.rows[0].longitud) };
+          }
+          console.log(`[rutas/generar] sede auto-detectada para zona "${ruta}": "${sedeNombre}" (${ciudad})`);
+        }
+      }
+    }
+
     if (sede_id) {
       const sedeRow = await pool.query('SELECT nombre, latitud, longitud FROM logistics.sedes WHERE id=$1 AND activo=true', [sede_id]);
       if (sedeRow.rows.length === 0) return res.status(404).json({ error: 'Sede no encontrada o inactiva' });
       sedeNombre = sedeRow.rows[0].nombre;
       if (sedeRow.rows[0].latitud && sedeRow.rows[0].longitud) {
-        depot = { lat: sedeRow.rows[0].latitud, lng: sedeRow.rows[0].longitud };
+        depot = { lat: Number(sedeRow.rows[0].latitud), lng: Number(sedeRow.rows[0].longitud) };
       }
     }
 
-    const rutaCol = tipo === 'moto' ? 'c.ruta_moto' : 'c.ruta';
     const pedidos = await pool.query(
       `SELECT p.id, p.latitud AS lat, p.longitud AS lng, p.peso_estimado, p.volumen_estimado,
               p.vehiculo_id, p.cliente_nombre, p.direccion, ${rutaCol} AS cliente_ruta
@@ -78,10 +105,22 @@ router.post('/generar', async (req, res) => {
     if (pedidos.rows.length === 0) return res.status(400).json({ error: 'No hay pedidos pendientes con coordenadas. Asegúrate de que los pedidos tengan latitud y longitud.' });
 
     const vehiculos = await pool.query(
-      `SELECT id, placa, ultima_posicion_lat AS lat, ultima_posicion_lng AS lng
+      `SELECT id, placa, sede, ultima_posicion_lat AS lat, ultima_posicion_lng AS lng
        FROM logistics.vehiculos WHERE estado='disponible'`
     );
     if (vehiculos.rows.length === 0) return res.status(400).json({ error: 'No hay vehículos disponibles' });
+
+    // Filtrar vehículos por la sede detectada/Seleccionada
+    let vehiculosDisponibles = vehiculos.rows;
+    if (sedeNombre) {
+      const filtrados = vehiculosDisponibles.filter(v => v.sede === sedeNombre);
+      if (filtrados.length > 0) {
+        vehiculosDisponibles = filtrados;
+        console.log(`[rutas/generar] ${filtrados.length} vehículo(s) filtrados por sede "${sedeNombre}"`);
+      } else {
+        console.log(`[rutas/generar] sin vehículos en sede "${sedeNombre}", usando todos los disponibles`);
+      }
+    }
 
     // Agrupar pedidos por cliente.ruta
     const grupos = {};
@@ -102,12 +141,11 @@ router.post('/generar', async (req, res) => {
 
     for (const nombreRuta of nombresRuta) {
       const grupo = grupos[nombreRuta];
-      const vehiculo = vehiculos.rows[vehiculoIdx % vehiculos.rows.length];
+      const vehiculo = vehiculosDisponibles[vehiculoIdx % vehiculosDisponibles.length];
       vehiculoIdx++;
 
-      console.log(`[rutas/generar] grupo "${nombreRuta}": ${grupo.length} pedidos, vehiculo #${vehiculo.id} (${vehiculo.placa})`);
+      console.log(`[rutas/generar] grupo "${nombreRuta}": ${grupo.length} pedidos, vehiculo #${vehiculo.id} (${vehiculo.placa}), sede: ${vehiculo.sede || '—'}`);
 
-      // Asignar vehiculo_id del vehículo a cada pedido del grupo para que el VRP lo agrupe correctamente
       const pedidosGrupo = grupo.map(p => ({ ...p, vehiculo_id: vehiculo.id }));
 
       const resultado = await generarRutasOptimizadas(pedidosGrupo, [vehiculo], osrmUrl, depot);
