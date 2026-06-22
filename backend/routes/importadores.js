@@ -7,6 +7,7 @@ import pool from '../config/db.js';
 import { parsearPdfSiesa } from '../utils/siesaPdfParser.js';
 import { parsearWidetech } from '../utils/widgetechExcelParser.js';
 import { geocodificar } from '../utils/geocoding.js';
+import { parsearMaestroClientes } from '../utils/maestroClientesParser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadDir = path.join(__dirname, '..', '..', 'uploads');
@@ -257,6 +258,74 @@ router.post('/widetech', upload.single('archivo'), async (req, res) => {
       totalRegistros: resultado.totalRegistros,
       vehiculosUnicos: resultado.vehiculosUnicos,
       importados, fallidos
+    });
+  } catch (err) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/maestro-clientes', upload.single('archivo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Archivo requerido' });
+
+    const resultado = await parsearMaestroClientes(req.file.path);
+
+    if (!resultado.exitosa) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(422).json({ error: resultado.error });
+    }
+
+    let importados = 0;
+    let actualizados = 0;
+    let errores = [];
+
+    for (const c of resultado.clientes) {
+      try {
+        const existente = await pool.query(
+          `SELECT id FROM logistics.clientes WHERE codigo_siesa=$1 OR (nombre ILIKE $2 AND codigo_siesa IS NULL)`,
+          [c.codigo, c.nombre]
+        );
+
+        if (existente.rows.length > 0) {
+          await pool.query(
+            `UPDATE logistics.clientes SET
+              direccion=$1, ciudad=$2, ruta=$3, ruta_moto=$4,
+              codigo_siesa=COALESCE(NULLIF($5,''), codigo_siesa),
+              ultima_importacion=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+             WHERE id=$6`,
+            [c.direccion, c.ciudad, c.ruta || null, c.ruta_moto || null, c.codigo || null, existente.rows[0].id]
+          );
+          actualizados++;
+        } else {
+          await pool.query(
+            `INSERT INTO logistics.clientes (nombre, direccion, ciudad, ruta, ruta_moto, codigo_siesa, ultima_importacion)
+             VALUES ($1,$2,$3,$4,$5,$6,CURRENT_TIMESTAMP)`,
+            [c.nombre, c.direccion, c.ciudad, c.ruta || null, c.ruta_moto || null, c.codigo || null]
+          );
+          importados++;
+        }
+      } catch (e) {
+        errores.push({ nombre: c.nombre, error: e.message });
+      }
+    }
+
+    fs.unlink(req.file.path, () => {});
+
+    await pool.query(
+      `INSERT INTO logistics.importaciones (tipo, nombre_archivo, registros_importados, registros_fallidos, estado, detalles)
+       VALUES ('maestro_clientes', $1, $2, $3, $4, $5)`,
+      [req.file.originalname, importados + actualizados, errores.length,
+       errores.length > 0 ? 'parcial' : 'exitosa',
+       JSON.stringify({ importados, actualizados, errores })]
+    );
+
+    res.json({
+      exitosa: true,
+      importados,
+      actualizados,
+      total: resultado.clientes.length,
+      errores: errores.length > 0 ? errores : undefined
     });
   } catch (err) {
     if (req.file) fs.unlink(req.file.path, () => {});

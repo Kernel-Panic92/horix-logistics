@@ -51,7 +51,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/generar', async (req, res) => {
   try {
-    const { fecha, sede, sede_id, ruta } = req.body;
+    const { fecha, sede, sede_id, ruta, tipo } = req.body;
     if (!fecha) return res.status(400).json({ error: 'Fecha requerida' });
 
     let depot = null;
@@ -66,9 +66,10 @@ router.post('/generar', async (req, res) => {
       }
     }
 
+    const rutaCol = tipo === 'moto' ? 'c.ruta_moto' : 'c.ruta';
     const pedidos = await pool.query(
       `SELECT p.id, p.latitud AS lat, p.longitud AS lng, p.peso_estimado, p.volumen_estimado,
-              p.vehiculo_id, p.cliente_nombre, p.direccion, c.ruta AS cliente_ruta
+              p.vehiculo_id, p.cliente_nombre, p.direccion, ${rutaCol} AS cliente_ruta
        FROM logistics.pedidos_logistica p
        LEFT JOIN logistics.clientes c ON c.id = p.cliente_id
        WHERE p.estado='pendiente' AND p.ruta_id IS NULL

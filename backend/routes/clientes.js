@@ -36,16 +36,17 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { nombre, direccion, ciudad, telefono, latitud, longitud, ruta } = req.body;
+    const { nombre, direccion, ciudad, telefono, latitud, longitud, ruta, ruta_moto, codigo_siesa } = req.body;
     if (!nombre) return res.status(400).json({ error: 'nombre requerido' });
     const result = await pool.query(
-      `INSERT INTO logistics.clientes (nombre, direccion, ciudad, telefono, latitud, longitud, ruta, geocodificado, ultima_importacion)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP)
+      `INSERT INTO logistics.clientes (nombre, direccion, ciudad, telefono, latitud, longitud, ruta, ruta_moto, codigo_siesa, geocodificado, ultima_importacion)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CURRENT_TIMESTAMP)
        ON CONFLICT (nombre) DO UPDATE SET direccion=EXCLUDED.direccion, ciudad=EXCLUDED.ciudad,
         telefono=EXCLUDED.telefono, latitud=EXCLUDED.latitud, longitud=EXCLUDED.longitud,
-        ruta=EXCLUDED.ruta, geocodificado=EXCLUDED.geocodificado, ultima_importacion=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+        ruta=EXCLUDED.ruta, ruta_moto=EXCLUDED.ruta_moto, codigo_siesa=EXCLUDED.codigo_siesa,
+        geocodificado=EXCLUDED.geocodificado, ultima_importacion=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
        RETURNING *`,
-      [nombre, direccion || '', ciudad || '', telefono || '', latitud, longitud, ruta || null, latitud !== null && latitud !== undefined]
+      [nombre, direccion || '', ciudad || '', telefono || '', latitud, longitud, ruta || null, ruta_moto || null, codigo_siesa || null, latitud !== null && latitud !== undefined]
     );
     res.status(201).json({ cliente: result.rows[0] });
   } catch (err) {
@@ -55,17 +56,18 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { nombre, direccion, ciudad, telefono, latitud, longitud, ruta } = req.body;
+    const { nombre, direccion, ciudad, telefono, latitud, longitud, ruta, ruta_moto, codigo_siesa } = req.body;
     const result = await pool.query(
       `UPDATE logistics.clientes SET
         nombre=COALESCE($1,nombre), direccion=COALESCE($2,direccion),
         ciudad=COALESCE($3,ciudad), telefono=COALESCE($4,telefono),
         latitud=COALESCE($5,latitud), longitud=COALESCE($6,longitud),
-        ruta=COALESCE($7,ruta),
+        ruta=COALESCE($7,ruta), ruta_moto=COALESCE($8,ruta_moto),
+        codigo_siesa=COALESCE($9,codigo_siesa),
         geocodificado=CASE WHEN $5 IS NOT NULL AND $6 IS NOT NULL THEN TRUE ELSE geocodificado END,
         updated_at=CURRENT_TIMESTAMP
-       WHERE id=$8 RETURNING *`,
-      [nombre, direccion, ciudad, telefono, latitud, longitud, ruta, req.params.id]
+       WHERE id=$10 RETURNING *`,
+      [nombre, direccion, ciudad, telefono, latitud, longitud, ruta, ruta_moto, codigo_siesa, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
     res.json({ cliente: result.rows[0] });

@@ -444,6 +444,10 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
             <select id="filtro-ruta-zona" style="width:auto;max-width:180px;">
               <option value="">Todas las zonas</option>
             </select>
+            <select id="filtro-ruta-tipo" style="width:auto;max-width:120px;">
+              <option value="vehiculo">🚛 Vehículo</option>
+              <option value="moto">🏍️ Moto</option>
+            </select>
             <button class="btn btn-primary btn-sm" onclick="generarRutas()">⚡ Generar rutas</button>
           </div>
         </div>
@@ -475,6 +479,19 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
             <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Nuevo Cliente</button>
           </div>
         </div>
+        <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-maestro-card">
+          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📋 Importar maestro de clientes (SIE-SA)</summary>
+          <div style="margin-top:12px;cursor:default;">
+            <div class="drop-zone" id="drop-maestro" onclick="document.getElementById('file-maestro').click()" style="padding:16px;">
+              <div class="icon" style="font-size:24px;">📋</div>
+              <p style="font-size:13px;">Arrastra el Excel/CSV aquí o haz clic</p>
+              <div class="filename" id="file-maestro-name"></div>
+            </div>
+            <input type="file" id="file-maestro" accept=".xlsx,.xls,.csv,.txt,.tsv" style="display:none" onchange="previsualizarArchivo(this,'file-maestro-name')">
+            <button class="btn btn-primary" onclick="importarMaestroClientes()" id="btn-import-maestro" style="width:100%;justify-content:center;" disabled>Importar</button>
+            <div id="result-maestro" style="margin-top:10px;"></div>
+          </div>
+        </details>
         <div style="margin-bottom:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <div style="position:relative;flex:1;min-width:200px;max-width:380px;">
             <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span>

@@ -425,6 +425,10 @@ async function cargarClientes() {
           <div class="cli-stat"><strong>${c.cantidad_pedidos || 0}</strong>Pedidos</div>
           <div class="cli-stat"><strong>${c.ultima_importacion ? new Date(c.ultima_importacion).toLocaleDateString('es-CO') : '—'}</strong>Última importación</div>
         </div>
+        <div style="padding:4px 0;font-size:11px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);margin-top:4px;padding-top:6px;">
+          ${c.ruta ? '<span>🚛 ' + esc(c.ruta) + '</span>' : ''}
+          ${c.ruta_moto ? '<span>🏍️ ' + esc(c.ruta_moto) + '</span>' : ''}
+        </div>
         <div class="cli-actions">
           <button class="btn btn-sm btn-secondary" onclick="editarCliente(${c.id})" style="flex:1">✏️ Editar</button>
           <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('cliente',${c.id})">🗑️</button>
@@ -544,7 +548,8 @@ function abrirModalCliente(data) {
         <div class="form-group"><label>Dirección</label><input id="c-direccion" value="${d.direccion||''}" placeholder="Busca y selecciona una dirección..." autocomplete="off"></div>
         <div class="form-group"><label>Ciudad</label><input id="c-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
         <div class="form-group"><label>Teléfono</label><input id="c-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
-        <div class="form-group"><label>Ruta</label><input id="c-ruta" value="${d.ruta||''}" placeholder="Ej: Ruta 2, Zona Norte"></div>
+        <div class="form-group"><label>Ruta (Vehículo)</label><input id="c-ruta" value="${d.ruta||''}" placeholder="Ej: 005 - BELEN/LAURELES/FLORESTA"></div>
+        <div class="form-group"><label>Ruta (Moto)</label><input id="c-ruta-moto" value="${d.ruta_moto||''}" placeholder="Ej: 024 - ROBLEDO"></div>
         <div class="form-group"><label>Latitud</label><input type="number" step="any" id="c-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
         <div class="form-group"><label>Longitud</label><input type="number" step="any" id="c-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
       </div>
@@ -568,6 +573,7 @@ async function guardarCliente(id) {
     ciudad: document.getElementById('c-ciudad').value.trim(),
     telefono: document.getElementById('c-telefono').value.trim(),
     ruta: document.getElementById('c-ruta').value.trim() || null,
+    ruta_moto: document.getElementById('c-ruta-moto').value.trim() || null,
     latitud: document.getElementById('c-lat').value ? +document.getElementById('c-lat').value : null,
     longitud: document.getElementById('c-lng').value ? +document.getElementById('c-lng').value : null
   };
@@ -764,7 +770,7 @@ async function poblarRutasZona() {
   if (!select) return;
   try {
     const data = await api('/clientes?q=');
-    const rutas = [...new Set((data.clientes||[]).map(c => c.ruta).filter(Boolean))].sort();
+    const rutas = [...new Set((data.clientes||[]).flatMap(c => [c.ruta, c.ruta_moto]).filter(Boolean))].sort();
     select.innerHTML = '<option value="">Todas las zonas</option>' +
       rutas.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
   } catch {}
@@ -918,11 +924,13 @@ async function generarRutas() {
     if (s) sedeId = s.id;
   }
   const rutaZona = document.getElementById('filtro-ruta-zona')?.value || '';
-  const msg = '¿Generar rutas optimizadas para ' + fecha + (sedeNombre ? ' (' + sedeNombre + ')' : '') + (rutaZona ? ' — ' + rutaZona : '') + '?';
+  const tipo = document.getElementById('filtro-ruta-tipo')?.value || 'vehiculo';
+  const tipoLabel = tipo === 'moto' ? '🏍️ Moto' : '🚛 Vehículo';
+  const msg = '¿Generar rutas optimizadas para ' + fecha + (sedeNombre ? ' (' + sedeNombre + ')' : '') + (rutaZona ? ' — ' + rutaZona : '') + ' [' + tipoLabel + ']?';
   const ok = await confirmarModal('Generar rutas', msg);
   if (!ok) return;
   try {
-    const body = { fecha };
+    const body = { fecha, tipo };
     if (sedeId) body.sede_id = sedeId;
     if (rutaZona) body.ruta = rutaZona;
     const data = await api('/rutas/generar', { method: 'POST', body: JSON.stringify(body) });
@@ -994,6 +1002,30 @@ ${d.rawText ? esc(d.rawText).split('\n').slice(0,40).map((l,i) => `${i}: ${l}`).
     resEl.innerHTML = html;
     input.value = ''; document.getElementById('file-siesa-name').style.display = 'none';
     cargarDashboard();
+  } catch (e) {
+    resEl.innerHTML = `<div style="padding:10px;background:rgba(247,97,79,.1);border-radius:8px;color:var(--danger);font-size:13px;">❌ ${e.message}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Importar';
+  }
+}
+
+async function importarMaestroClientes() {
+  const input = document.getElementById('file-maestro');
+  const resEl = document.getElementById('result-maestro');
+  if (!input.files?.length) { resEl.innerHTML = '<div style="padding:10px;background:rgba(247,97,79,.1);border-radius:8px;color:var(--danger);font-size:13px;">❌ Selecciona un archivo primero</div>'; return; }
+  const btn = document.getElementById('btn-import-maestro');
+  btn.disabled = true; btn.textContent = 'Importando...';
+  const fd = new FormData();
+  fd.append('archivo', input.files[0]);
+  try {
+    const res = await fetch(API + '/importadores/maestro-clientes', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    resEl.innerHTML = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
+      ✅ ${data.total} registros procesados (${data.importados} nuevos, ${data.actualizados} actualizados)${data.errores ? '<br>⚠️ ' + data.errores.length + ' errores' : ''}
+    </div>`;
+    input.value = ''; document.getElementById('file-maestro-name').style.display = 'none';
+    cargarClientes();
   } catch (e) {
     resEl.innerHTML = `<div style="padding:10px;background:rgba(247,97,79,.1);border-radius:8px;color:var(--danger);font-size:13px;">❌ ${e.message}</div>`;
   } finally {
