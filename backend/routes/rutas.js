@@ -227,11 +227,16 @@ router.get('/mapa/datos', async (req, res) => {
       SELECT id, placa, alias, ultima_posicion_lat, ultima_posicion_lng, estado
       FROM logistics.vehiculos WHERE ultima_posicion_lat IS NOT NULL AND ultima_posicion_lng IS NOT NULL`);
 
+    const sedes = await pool.query(`
+      SELECT id, nombre, centro_operacion, ciudad, direccion, latitud, longitud
+      FROM logistics.sedes WHERE activo=true AND latitud IS NOT NULL AND longitud IS NOT NULL`);
+
     res.json({
       exitosa: true,
       rutas: rutas.rows,
       paradas,
-      vehiculos: vehiculos.rows
+      vehiculos: vehiculos.rows,
+      sedes: sedes.rows
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

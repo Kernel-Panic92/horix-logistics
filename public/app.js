@@ -1834,14 +1834,14 @@ function actualizarMapaPin(containerId, lat, lng) {
 
 /* ── Mapa ── */
 let mapInstance = null;
-let mapLayers = { rutas: [], vehiculos: [], paradas: [] };
+let mapLayers = { rutas: [], vehiculos: [], paradas: [], sedes: [] };
 
 const coloresRuta = ['#00A86B','#4f8ef7','#f7944f','#f7614f','#9b59b6','#1abc9c','#e67e22','#3498db'];
 let mapaFitted = false;
 
 function resetMapaLayers() {
   Object.values(mapLayers).forEach(arr => arr.forEach(l => mapInstance?.removeLayer(l)));
-  mapLayers = { rutas: [], vehiculos: [], paradas: [] };
+  mapLayers = { rutas: [], vehiculos: [], paradas: [], sedes: [] };
 }
 
 async function cargarMapa() {
@@ -1865,6 +1865,21 @@ async function cargarMapa() {
     const rutaSelect = document.getElementById('mapa-filtro-ruta');
     rutaSelect.innerHTML = '<option value="">Todas las rutas</option>' +
       data.rutas.map(r => `<option value="${r.id}">${esc(r.nombre||'Ruta #'+r.id)} · ${esc(r.placa)}</option>`).join('');
+
+    // Sedes
+    for (const s of (data.sedes || [])) {
+      if (!s.latitud || !s.longitud) continue;
+      const marker = L.marker([s.latitud, s.longitud], {
+        icon: L.divIcon({
+          className: 'sede-marker',
+          html: '<div style="background:#f7944f;color:#fff;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);">🏢</div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        })
+      }).addTo(mapInstance);
+      marker.bindPopup(`<b>${esc(s.nombre)}</b>${s.centro_operacion ? '<br>Centro: ' + esc(s.centro_operacion) : ''}${s.ciudad ? '<br>📍 ' + esc(s.ciudad) : ''}${s.direccion ? '<br>🏠 ' + esc(s.direccion) : ''}`);
+      mapLayers.sedes.push(marker);
+    }
 
     // Vehicles
     for (const v of data.vehiculos) {
@@ -1903,9 +1918,9 @@ async function cargarMapa() {
       idx++;
     }
 
-    if (data.rutas.length && !mapaFitted) {
-      const bounds = mapLayers.rutas.length ? mapLayers.rutas : mapLayers.vehiculos;
-      if (bounds.length) mapInstance.fitBounds(bounds, { padding: [40,40] });
+    if (!mapaFitted) {
+      const allLayers = [...mapLayers.rutas, ...mapLayers.vehiculos, ...mapLayers.sedes];
+      if (allLayers.length) mapInstance.fitBounds(allLayers, { padding: [40,40] });
       mapaFitted = true;
     }
   } catch {}
