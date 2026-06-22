@@ -688,8 +688,6 @@ function actualizarBtnEliminar(tipo) {
   const checks = document.querySelectorAll('.cb-' + tipo + ':checked');
   const btn = document.getElementById('btn-del-' + tipo);
   if (btn) btn.style.display = checks.length > 0 ? 'inline-flex' : 'none';
-  const btnAss = document.getElementById('btn-assign-' + tipo);
-  if (btnAss) btnAss.style.display = checks.length > 0 ? 'inline-flex' : 'none';
   if (tipo === 'cliente') {
     const total = document.querySelectorAll('.cb-cliente').length;
     const selAll = document.querySelector('#page-clientes input[onchange*="toggleAll"]');
@@ -704,7 +702,7 @@ function toggleAll(tipo, checked) {
 
 async function asignarMasivoPedido() {
   const checks = document.querySelectorAll('.cb-pedido:checked');
-  if (!checks.length) return;
+  if (!checks.length) { mostrarAlerta('Seleccione uno o más pedidos primero', 'warning'); return; }
   const ids = Array.from(checks).map(c => +c.value);
 
   if (!_sedesCache) {
@@ -764,12 +762,9 @@ async function filtrarVehiculosEnBulk() {
   const sede = document.getElementById('masivo-sede').value;
   const sel = document.getElementById('masivo-vehiculo');
   if (!sel) return;
-  let opts = '<option value="">— Sin cambio —</option>';
-  if (sede) {
-    const filtrados = _vehiculosCache.filter(v => v.sede === sede);
-    opts += filtrados.map(v => `<option value="${v.id}">${esc(v.placa)}${v.sede ? ' — '+esc(v.sede) : ''}</option>`).join('');
-  }
-  sel.innerHTML = opts;
+  let lista = sede ? _vehiculosCache.filter(v => v.sede === sede) : _vehiculosCache;
+  sel.innerHTML = '<option value="">— Sin cambio —</option>' +
+    lista.map(v => `<option value="${v.id}">${esc(v.placa)}${v.sede ? ' — '+esc(v.sede) : ''}</option>`).join('');
 }
 
 async function eliminarSeleccionados(tipo) {
