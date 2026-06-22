@@ -998,12 +998,12 @@ async function verRuta(id) {
     );
     if (tienenCoords) setTimeout(() => {
       const color = r.color_vehiculo || null;
-      initMapaRutaDetalle(paradas, r.geometria, color);
+      initMapaRutaDetalle(paradas, r.geometria, color, r.sede);
     }, 200);
   } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
-function initMapaRutaDetalle(paradas, geometria, colorRuta) {
+function initMapaRutaDetalle(paradas, geometria, colorRuta, sedeNombre) {
   const el = document.getElementById('mapa-ruta-detalle');
   if (!el || el._leafletMap) return;
   const map = L.map(el).setView([paradas[0].latitud, paradas[0].longitud], 14);
@@ -1013,21 +1013,24 @@ function initMapaRutaDetalle(paradas, geometria, colorRuta) {
   if (coords.length) {
     if (geometria && geometria.coordinates && geometria.coordinates.length) {
       L.geoJSON(geometria, { style: { color, weight: 3 } }).addTo(map);
+      // Start flag at depot (primer punto de la geometria)
+      const inicio = [geometria.coordinates[0][1], geometria.coordinates[0][0]];
+      L.marker(inicio, { icon: L.divIcon({ html: '🏁', className: '', iconSize: [24, 24], iconAnchor: [12, 24] }) })
+        .addTo(map).bindPopup(`<b>Salida</b><br>${esc(sedeNombre || 'Depósito')}`);
     } else {
       L.polyline(coords, { color, weight: 3 }).addTo(map);
+      // Start flag at first stop
+      L.marker(coords[0], { icon: L.divIcon({ html: '🏁', className: '', iconSize: [24, 24], iconAnchor: [12, 24] }) })
+        .addTo(map).bindPopup(`<b>Salida</b><br>${esc(paradas[0]?.cliente_nombre||'')}`);
     }
     coords.forEach((c, i) => {
-      if (i === 0) {
-        L.marker(c, { icon: L.divIcon({ html: '🏁', className: '', iconSize: [24, 24], iconAnchor: [12, 24] }) }).addTo(map)
-          .bindPopup(`<b>Salida</b><br>${esc(paradas[i]?.cliente_nombre||'')}`);
-      } else if (i === coords.length - 1) {
-        L.marker(c, { icon: L.divIcon({ html: '🚩', className: '', iconSize: [24, 24], iconAnchor: [12, 24] }) }).addTo(map)
-          .bindPopup(`<b>Llegada</b><br>${esc(paradas[i]?.cliente_nombre||'')}`);
-      } else {
-        L.circleMarker(c, { radius: 6, color, fillColor: '#fff', fillOpacity: 0.9, weight: 2 })
-          .addTo(map).bindPopup(`#${i+1} ${esc(paradas[i]?.cliente_nombre||'')}`);
-      }
+      L.circleMarker(c, { radius: 6, color, fillColor: '#fff', fillOpacity: 0.9, weight: 2 })
+        .addTo(map).bindPopup(`#${i+1} ${esc(paradas[i]?.cliente_nombre||'')}`);
     });
+    // End flag at last stop
+    const ultimo = coords[coords.length - 1];
+    L.marker(ultimo, { icon: L.divIcon({ html: '🚩', className: '', iconSize: [24, 24], iconAnchor: [12, 24] }) })
+      .addTo(map).bindPopup(`<b>Llegada</b><br>${esc(paradas[coords.length-1]?.cliente_nombre||'')}`);
     map.fitBounds(coords, { padding: [30,30] });
   }
   el._leafletMap = map;
