@@ -106,7 +106,10 @@ router.delete('/seleccionados', async (req, res) => {
     if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
     const result = await pool.query('DELETE FROM logistics.pedidos_logistica WHERE id = ANY($1::int[]) RETURNING id', [ids]);
     res.json({ eliminados: result.rows.length });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    if (err.code === '23503') return res.status(409).json({ error: 'Uno o más pedidos están asignados a una ruta. Elimine la(s) ruta(s) primero.' });
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.delete('/:id', async (req, res) => {
@@ -115,6 +118,7 @@ router.delete('/:id', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
     res.json({ exitosa: true, mensaje: 'Pedido eliminado' });
   } catch (err) {
+    if (err.code === '23503') return res.status(409).json({ error: 'Este pedido está asignado a una ruta. Elimine la ruta primero.' });
     res.status(500).json({ error: err.message });
   }
 });
