@@ -1839,6 +1839,15 @@ let mapLayers = { rutas: [], vehiculos: [], paradas: [], sedes: [] };
 const coloresRuta = ['#00A86B','#4f8ef7','#f7944f','#f7614f','#9b59b6','#1abc9c','#e67e22','#3498db'];
 let mapaFitted = false;
 
+function reiniciarMapa() {
+  localStorage.removeItem('mapa_lat');
+  localStorage.removeItem('mapa_lng');
+  localStorage.removeItem('mapa_zoom');
+  if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+  mapaFitted = false;
+  cargarMapa();
+}
+
 function resetMapaLayers() {
   Object.values(mapLayers).forEach(arr => arr.forEach(l => mapInstance?.removeLayer(l)));
   mapLayers = { rutas: [], vehiculos: [], paradas: [], sedes: [] };
@@ -1851,11 +1860,24 @@ async function cargarMapa() {
 
   // Init map once
   if (!mapInstance) {
-    mapInstance = L.map(el).setView([6.2476, -75.5658], 13);
+    const savedLat = parseFloat(localStorage.getItem('mapa_lat'));
+    const savedLng = parseFloat(localStorage.getItem('mapa_lng'));
+    const savedZoom = parseInt(localStorage.getItem('mapa_zoom'));
+    const hasSaved = savedLat && savedLng && savedZoom;
+    const center = hasSaved ? [savedLat, savedLng] : [6.2476, -75.5658];
+    const zoom = hasSaved ? savedZoom : 13;
+    mapInstance = L.map(el).setView(center, zoom);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, attribution: '© OpenStreetMap'
     }).addTo(mapInstance);
     mapInstance.on('resize', () => mapInstance.invalidateSize());
+    mapInstance.on('moveend', () => {
+      const c = mapInstance.getCenter();
+      localStorage.setItem('mapa_lat', c.lat.toFixed(6));
+      localStorage.setItem('mapa_lng', c.lng.toFixed(6));
+      localStorage.setItem('mapa_zoom', mapInstance.getZoom());
+    });
+    if (hasSaved) mapaFitted = true;
   }
 
   resetMapaLayers();
