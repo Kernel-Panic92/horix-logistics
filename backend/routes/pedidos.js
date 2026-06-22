@@ -104,6 +104,16 @@ router.delete('/seleccionados', async (req, res) => {
   try {
     const { ids } = req.body;
     if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
+    const blocking = await pool.query(`
+      SELECT DISTINCT r.id, r.fecha
+      FROM logistics.pedidos_logistica p
+      JOIN logistics.rutas r ON r.id = p.ruta_id
+      WHERE p.id = ANY($1::int[]) AND p.ruta_id IS NOT NULL
+    `, [ids]);
+    if (blocking.rows.length > 0) {
+      const rutas = blocking.rows.map(r => `Ruta #${r.id} (${r.fecha})`).join(', ');
+      return res.status(409).json({ error: `Pedidos asignados a: ${rutas}. Elimine la(s) ruta(s) primero.` });
+    }
     const result = await pool.query('DELETE FROM logistics.pedidos_logistica WHERE id = ANY($1::int[]) RETURNING id', [ids]);
     res.json({ eliminados: result.rows.length });
   } catch (err) {
@@ -114,6 +124,16 @@ router.delete('/seleccionados', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
+    const blocking = await pool.query(`
+      SELECT r.id, r.fecha
+      FROM logistics.pedidos_logistica p
+      JOIN logistics.rutas r ON r.id = p.ruta_id
+      WHERE p.id = $1 AND p.ruta_id IS NOT NULL
+    `, [req.params.id]);
+    if (blocking.rows.length > 0) {
+      const r = blocking.rows[0];
+      return res.status(409).json({ error: `Pedido asignado a Ruta #${r.id} (${r.fecha}). Elimine la ruta primero.` });
+    }
     const result = await pool.query('DELETE FROM logistics.pedidos_logistica WHERE id=$1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
     res.json({ exitosa: true, mensaje: 'Pedido eliminado' });
