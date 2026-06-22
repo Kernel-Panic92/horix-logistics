@@ -855,7 +855,7 @@ async function cargarRutas() {
         <td>${r.tiempo_estimado ? r.tiempo_estimado+' min' : '—'}</td>
         <td><span class="badge badge-${r.estado==='planificada'?'info':r.estado==='en_ejecucion'?'warning':r.estado==='completada'?'success':'danger'}">${r.estado}</span></td>
         <td>${r.fecha ? r.fecha.slice(0,10) : '—'}</td>
-        <td style="white-space:nowrap"><button class="btn btn-sm btn-icon btn-secondary" onclick="verRuta(${r.id})" title="Ver">👁️</button><button class="btn btn-sm btn-icon btn-secondary" onclick="exportarRutaGMaps(${r.id})" title="Abrir en Google Maps"><svg viewBox="0 0 24 24" width="18" height="18" fill="#4285F4"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></button><button class="btn btn-sm btn-icon btn-danger" onclick="confirmarEliminar('ruta',${r.id})" title="Eliminar">🗑️</button></td>
+        <td style="white-space:nowrap"><button class="btn btn-sm btn-icon btn-secondary" onclick="verRuta(${r.id})" title="Ver">👁️</button><button class="btn btn-sm btn-icon btn-secondary" onclick="exportarRutaGMaps(${r.id})" title="Abrir en Google Maps"><svg viewBox="0 0 24 24" width="20" height="20" fill="#4285F4" style="display:block"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></button><button class="btn btn-sm btn-icon btn-danger" onclick="confirmarEliminar('ruta',${r.id})" title="Eliminar">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
