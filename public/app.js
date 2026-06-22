@@ -705,11 +705,11 @@ async function asignarMasivoPedido() {
   if (!checks.length) { mostrarAlerta('Seleccione uno o más pedidos primero', 'warning'); return; }
   const ids = Array.from(checks).map(c => +c.value);
 
-  if (!_sedesCache) {
+  if (!_sedesCache || !_sedesCache.length) {
     const res = await api('/sedes');
     _sedesCache = res.sedes || [];
   }
-  if (!_vehiculosCache) {
+  if (!_vehiculosCache || !_vehiculosCache.length) {
     const res = await api('/vehiculos');
     _vehiculosCache = res.vehiculos || [];
   }
@@ -765,6 +765,48 @@ async function filtrarVehiculosEnBulk() {
   let lista = sede ? _vehiculosCache.filter(v => v.sede === sede) : _vehiculosCache;
   sel.innerHTML = '<option value="">— Sin cambio —</option>' +
     lista.map(v => `<option value="${v.id}">${esc(v.placa)}${v.sede ? ' — '+esc(v.sede) : ''}</option>`).join('');
+}
+
+async function asignarRutaMasivo() {
+  const checks = document.querySelectorAll('.cb-cliente:checked');
+  if (!checks.length) { mostrarAlerta('Seleccione uno o más clientes primero', 'warning'); return; }
+  const ids = Array.from(checks).map(c => +c.value);
+
+  abrirModal(
+    'Asignar ruta a clientes',
+    `${ids.length} cliente(s) seleccionado(s)`,
+    `
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="form-group">
+          <label>Ruta (vehículo)</label>
+          <input id="masivo-ruta" placeholder="Ej: Itagüí, Medellín Centro..." style="width:100%;">
+        </div>
+        <div class="form-group">
+          <label>Ruta (moto)</label>
+          <input id="masivo-ruta-moto" placeholder="Ej: Itagüí Moto, Zona Sur..." style="width:100%;">
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:0;">💡 Deja en blanco los campos que no quieras modificar.</p>
+      </div>
+    `,
+    `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="guardarRutaMasiva(${JSON.stringify(ids)})">Aplicar</button>`
+  );
+}
+
+async function guardarRutaMasiva(ids) {
+  const body = { ids };
+  const rutaEl = document.getElementById('masivo-ruta');
+  const rutaMotoEl = document.getElementById('masivo-ruta-moto');
+  if (rutaEl.value.trim()) body.ruta = rutaEl.value.trim();
+  if (rutaMotoEl.value.trim()) body.ruta_moto = rutaMotoEl.value.trim();
+  if (!body.ruta && !body.ruta_moto) { mostrarAlerta('Escriba al menos una ruta', 'warning'); return; }
+
+  try {
+    const res = await api('/clientes/asignar-ruta-masivo', { method: 'PUT', body: JSON.stringify(body) });
+    cerrarModal();
+    mostrarAlerta(res.mensaje, 'success');
+    cargarClientes();
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 async function eliminarSeleccionados(tipo) {

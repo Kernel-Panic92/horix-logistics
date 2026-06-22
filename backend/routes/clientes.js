@@ -76,6 +76,37 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.put('/asignar-ruta-masivo', async (req, res) => {
+  try {
+    const { ids, ruta, ruta_moto } = req.body;
+    if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
+    if (!ruta && !ruta_moto) return res.status(400).json({ error: 'Debe proporcionar ruta o ruta_moto' });
+
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    params.push(ids);
+    idx++;
+    if (ruta !== undefined && ruta !== null) { sets.push(`ruta=$${idx++}`); params.push(ruta || null); }
+    if (ruta_moto !== undefined && ruta_moto !== null) { sets.push(`ruta_moto=$${idx++}`); params.push(ruta_moto || null); }
+    sets.push('updated_at=CURRENT_TIMESTAMP');
+
+    const result = await pool.query(
+      `UPDATE logistics.clientes SET ${sets.join(', ')} WHERE id = ANY($1::int[]) RETURNING id`,
+      params
+    );
+
+    res.json({
+      exitosa: true,
+      actualizados: result.rows.length,
+      total: ids.length,
+      mensaje: `${result.rows.length} cliente(s) actualizado(s)`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/seleccionados', async (req, res) => {
   try {
     const { ids } = req.body;

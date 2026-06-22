@@ -476,6 +476,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
             <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;">
               <input type="checkbox" onchange="toggleAll('cliente',this.checked)" style="accent-color:var(--accent);"> Todo
             </label>
+            <button class="btn btn-secondary btn-sm" onclick="asignarRutaMasivo()">🛣️ Ruta</button>
             <button class="btn btn-danger btn-sm" id="btn-del-cliente" style="display:none" onclick="eliminarSeleccionados('cliente')">🗑️ Eliminar</button>
             <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Nuevo Cliente</button>
           </div>
