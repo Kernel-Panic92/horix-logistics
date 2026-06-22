@@ -855,7 +855,7 @@ async function cargarRutas() {
         <td>${r.tiempo_estimado ? r.tiempo_estimado+' min' : '—'}</td>
         <td><span class="badge badge-${r.estado==='planificada'?'info':r.estado==='en_ejecucion'?'warning':r.estado==='completada'?'success':'danger'}">${r.estado}</span></td>
         <td>${r.fecha ? r.fecha.slice(0,10) : '—'}</td>
-        <td><button class="btn btn-sm btn-secondary" onclick="verRuta(${r.id})">👁️</button> <button class="btn btn-sm btn-secondary" onclick="exportarRutaGMaps(${r.id})" title="Google Maps">🌐</button> <button class="btn btn-sm btn-secondary" onclick="exportarRutaWaze(${r.id})" title="Waze">🧭</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('ruta',${r.id})">🗑️</button></td>
+        <td><button class="btn btn-sm btn-secondary" onclick="verRuta(${r.id})">👁️</button> <button class="btn btn-sm btn-secondary" onclick="exportarRutaGMaps(${r.id})" title="Google Maps">🌐</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('ruta',${r.id})">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -995,7 +995,6 @@ async function verRuta(id) {
       </tbody></table></div>
       ${tienenCoords ? '<div id="mapa-ruta-detalle" style="height:280px;border-radius:10px;border:1px solid var(--border);"></div>' : ''}`,
       `<button class="btn btn-secondary" onclick="exportarRutaGMaps(${id})">🌐 Google Maps</button>
-       <button class="btn btn-secondary" onclick="exportarRutaWaze(${id})">🧭 Waze</button>
        <button class="btn btn-secondary" onclick="cerrarRutaDetalle()">Cerrar</button>`
     );
     if (tienenCoords) setTimeout(() => {
@@ -1065,17 +1064,7 @@ async function exportarRutaGMaps(id) {
   } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
-async function exportarRutaWaze(id) {
-  try {
-    const data = await api('/rutas/' + id);
-    const paradas = (data.paradas||[]).filter(p => p.latitud && p.longitud);
-    if (paradas.length < 1) { mostrarAlerta('La ruta no tiene paradas con coordenadas', 'warning'); return; }
-    const r = data.ruta;
-    // Waze no soporta multiparada, abrimos con la primera parada de entrega
-    const dest = `${paradas[0].latitud},${paradas[0].longitud}`;
-    window.open(`https://www.waze.com/ul?ll=${dest}&navigate=yes`, '_blank');
-  } catch (e) { mostrarAlerta(e.message, 'error'); }
-}
+
 
 async function generarRutas() {
   const fecha = document.getElementById('filtro-fecha').value;
