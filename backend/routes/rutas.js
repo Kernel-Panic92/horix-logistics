@@ -163,9 +163,10 @@ router.post('/generar', async (req, res) => {
       const nombre = `${nombreRuta} - ${vehiculo.placa} - ${fecha}`;
       const nuevaRuta = await pool.query(
         `INSERT INTO logistics.rutas (nombre, fecha, vehiculo_id, sede, distancia_total_estimada,
-         tiempo_estimado, estado, cantidad_paradas)
-         VALUES ($1,$2,$3,$4,$5,$6,'planificada',$7) RETURNING *`,
-        [nombre, fecha, rOpt.vehiculoId, sedeNombre, rOpt.distancia, rOpt.duracion, rOpt.paradas.length]
+         tiempo_estimado, estado, cantidad_paradas, geometria)
+         VALUES ($1,$2,$3,$4,$5,$6,'planificada',$7,$8::jsonb) RETURNING *`,
+        [nombre, fecha, rOpt.vehiculoId, sedeNombre, rOpt.distancia, rOpt.duracion, rOpt.paradas.length,
+         rOpt.geometria ? JSON.stringify(rOpt.geometria) : null]
       );
       const rutaId = nuevaRuta.rows[0].id;
 
@@ -246,6 +247,7 @@ router.get('/mapa/datos', async (req, res) => {
     const rutas = await pool.query(`
       SELECT r.id, r.nombre, r.fecha, r.vehiculo_id, r.estado,
              r.distancia_total_estimada, r.tiempo_estimado, r.cantidad_paradas,
+             r.geometria,
              v.placa, v.alias as vehiculo_alias,
              v.ultima_posicion_lat, v.ultima_posicion_lng
       FROM logistics.rutas r

@@ -94,6 +94,30 @@ export class OSRMClient {
   }
 
   /**
+   * Obtiene la geometría (camino por carretera) entre puntos ordenados
+   * @param {Array} puntos [{lat, lng}, ...] en el orden de visita
+   * @returns {Object|null} GeoJSON LineString o null si falla
+   */
+  async obtenerGeometriaRuta(puntos) {
+    try {
+      if (puntos.length < 2) return null;
+      const coordenadas = puntos.map(p => `${p.lng},${p.lat}`).join(';');
+      const url = `${this.baseUrl}/route/v1/driving/${coordenadas}`;
+      console.log('[OSRM] Geometría:', url);
+      const response = await axios.get(url, {
+        params: { geometries: 'geojson', overview: 'full' },
+        timeout: 30000
+      });
+      if (response.data.code === 'Ok') {
+        return response.data.routes[0].geometry;
+      }
+    } catch (err) {
+      console.error('[OSRM] Error obteniendo geometría:', err.message);
+    }
+    return null;
+  }
+
+  /**
    * Algoritmo Nearest Neighbor (greedy)
    * Comienza en un punto y siempre va al más cercano no visitado
    */
@@ -292,12 +316,17 @@ export class VRPSolver {
             })
             .filter(p => p !== null);
 
+          // Obtener geometría por carretera
+          const puntosOrdenados = rutaOptimizada.ruta.map(idx => puntosRuta[idx]);
+          const geometria = await this.osrm.obtenerGeometriaRuta(puntosOrdenados);
+
           rutas.push({
             vehiculoId: vehiculo.id,
             distancia: rutaOptimizada.distancia,
             duracion: rutaOptimizada.duracion,
             paradas,
-            secuencia: rutaOptimizada.ruta
+            secuencia: rutaOptimizada.ruta,
+            geometria
           });
         }
       }

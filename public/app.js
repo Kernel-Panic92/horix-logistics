@@ -994,18 +994,22 @@ async function verRuta(id) {
       ${tienenCoords ? '<div id="mapa-ruta-detalle" style="height:280px;border-radius:10px;border:1px solid var(--border);"></div>' : ''}`,
       `<button class="btn btn-secondary" onclick="cerrarRutaDetalle()">Cerrar</button>`
     );
-    if (tienenCoords) setTimeout(() => initMapaRutaDetalle(paradas), 200);
+    if (tienenCoords) setTimeout(() => initMapaRutaDetalle(paradas, r.geometria), 200);
   } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
-function initMapaRutaDetalle(paradas) {
+function initMapaRutaDetalle(paradas, geometria) {
   const el = document.getElementById('mapa-ruta-detalle');
   if (!el || el._leafletMap) return;
   const map = L.map(el).setView([paradas[0].latitud, paradas[0].longitud], 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
   const coords = paradas.filter(p => p.latitud && p.longitud).map(p => [p.latitud, p.longitud]);
   if (coords.length) {
-    L.polyline(coords, { color: '#00A86B', weight: 3 }).addTo(map);
+    if (geometria && geometria.coordinates && geometria.coordinates.length) {
+      L.geoJSON(geometria, { style: { color: '#00A86B', weight: 3 } }).addTo(map);
+    } else {
+      L.polyline(coords, { color: '#00A86B', weight: 3 }).addTo(map);
+    }
     coords.forEach((c, i) => {
       L.circleMarker(c, { radius: 6, color: '#00A86B', fillColor: '#fff', fillOpacity: 0.9, weight: 2 })
         .addTo(map).bindPopup(`#${i+1} ${esc(paradas[i]?.cliente_nombre||'')}`);
@@ -2062,8 +2066,13 @@ async function cargarMapa() {
       const color = coloresRuta[idx % coloresRuta.length];
       const coords = paradasRuta.map(p => [p.latitud, p.longitud]);
 
-      // polyline
-      const poly = L.polyline(coords, { color, weight: 3, opacity: 0.8 }).addTo(mapInstance);
+      // polyline (road-following if geometry exists)
+      let poly;
+      if (r.geometria && r.geometria.coordinates && r.geometria.coordinates.length) {
+        poly = L.geoJSON(r.geometria, { style: { color, weight: 3, opacity: 0.8 } }).addTo(mapInstance);
+      } else {
+        poly = L.polyline(coords, { color, weight: 3, opacity: 0.8 }).addTo(mapInstance);
+      }
       poly.bindPopup(`<b>${esc(r.nombre||'Ruta #'+r.id)}</b><br>${esc(r.placa)}<br>${r.cantidad_paradas||paradasRuta.length} paradas · ${r.distancia_total_estimada||'—'} km`);
       poly.rutaId = r.id;
       mapLayers.rutas.push(poly);
