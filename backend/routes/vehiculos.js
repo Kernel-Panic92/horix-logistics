@@ -35,11 +35,11 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { placa, alias, capacidad_peso, capacidad_volumen, sede } = req.body;
+    const { placa, alias, capacidad_peso, capacidad_volumen, sede, color } = req.body;
     const result = await pool.query(
-      `INSERT INTO logistics.vehiculos (placa, alias, capacidad_peso, capacidad_volumen, sede)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [placa, alias, capacidad_peso || 5000, capacidad_volumen || 20, sede]
+      `INSERT INTO logistics.vehiculos (placa, alias, capacidad_peso, capacidad_volumen, sede, color)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [placa, alias, capacidad_peso || 5000, capacidad_volumen || 20, sede, color || null]
     );
     res.status(201).json({ exitosa: true, vehiculo: result.rows[0] });
   } catch (err) {
@@ -49,13 +49,13 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { placa, alias, capacidad_peso, capacidad_volumen, sede, estado } = req.body;
+    const { placa, alias, capacidad_peso, capacidad_volumen, sede, estado, color } = req.body;
     const result = await pool.query(
       `UPDATE logistics.vehiculos SET placa=COALESCE($1,placa), alias=COALESCE($2,alias),
        capacidad_peso=COALESCE($3,capacidad_peso), capacidad_volumen=COALESCE($4,capacidad_volumen),
-       sede=COALESCE($5,sede), estado=COALESCE($6,estado), updated_at=CURRENT_TIMESTAMP
-       WHERE id=$7 RETURNING *`,
-      [placa, alias, capacidad_peso, capacidad_volumen, sede, estado, req.params.id]
+       sede=COALESCE($5,sede), estado=COALESCE($6,estado), color=COALESCE($7,color), updated_at=CURRENT_TIMESTAMP
+       WHERE id=$8 RETURNING *`,
+      [placa, alias, capacidad_peso, capacidad_volumen, sede, estado, color, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Vehículo no encontrado' });
     res.json({ exitosa: true, vehiculo: result.rows[0] });

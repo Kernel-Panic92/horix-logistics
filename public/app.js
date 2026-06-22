@@ -263,7 +263,7 @@ async function cargarVehiculos() {
         <td><input type="checkbox" class="cb-vehiculo" value="${v.id}" onchange="actualizarBtnEliminar('vehiculo')"></td>
         <td><strong>${v.placa}</strong></td>
         <td>${v.alias || '—'}</td>
-        <td>${v.sede || '—'}</td>
+        <td>${v.color ? '<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:'+esc(v.color)+';vertical-align:middle;border:1px solid var(--border);"></span> ' : ''}${v.sede || '—'}</td>
         <td>${v.capacidad_peso} kg</td>
         <td>${v.capacidad_volumen} m³</td>
         <td><span class="badge badge-${v.estado==='disponible'?'success':v.estado==='en_ruta'?'warning':'danger'}">${v.estado}</span></td>
@@ -284,6 +284,7 @@ function abrirModalVehiculo(data) {
       <div class="form-grid">
         <div class="form-group"><label>Placa *</label><input id="v-placa" value="${d.placa||''}" placeholder="TVD921"></div>
         <div class="form-group"><label>Alias</label><input id="v-alias" value="${d.alias||''}" placeholder="TVD921"></div>
+        <div class="form-group"><label>Color</label><input type="color" id="v-color" value="${d.color||'#00A86B'}" style="width:100%;height:40px;padding:4px;cursor:pointer;"></div>
         <div class="form-group"><label>Sede</label><select id="v-sede" data-sede="${d.sede||''}"><option value="">Cargando...</option></select></div>
         <div class="form-group"><label>Capacidad peso (kg)</label><input type="number" id="v-peso" value="${d.capacidad_peso||5000}"></div>
         <div class="form-group"><label>Capacidad volumen (m³)</label><input type="number" step="0.1" id="v-vol" value="${d.capacidad_volumen||20}"></div>
@@ -320,6 +321,7 @@ async function guardarVehiculo(id) {
   const body = {
     placa: document.getElementById('v-placa').value.trim(),
     alias: document.getElementById('v-alias').value.trim(),
+    color: document.getElementById('v-color').value,
     sede: document.getElementById('v-sede').value.trim(),
     capacidad_peso: +document.getElementById('v-peso').value,
     capacidad_volumen: +document.getElementById('v-vol').value,
@@ -994,25 +996,37 @@ async function verRuta(id) {
       ${tienenCoords ? '<div id="mapa-ruta-detalle" style="height:280px;border-radius:10px;border:1px solid var(--border);"></div>' : ''}`,
       `<button class="btn btn-secondary" onclick="cerrarRutaDetalle()">Cerrar</button>`
     );
-    if (tienenCoords) setTimeout(() => initMapaRutaDetalle(paradas, r.geometria), 200);
+    if (tienenCoords) setTimeout(() => {
+      const color = r.color_vehiculo || null;
+      initMapaRutaDetalle(paradas, r.geometria, color);
+    }, 200);
   } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
-function initMapaRutaDetalle(paradas, geometria) {
+function initMapaRutaDetalle(paradas, geometria, colorRuta) {
   const el = document.getElementById('mapa-ruta-detalle');
   if (!el || el._leafletMap) return;
   const map = L.map(el).setView([paradas[0].latitud, paradas[0].longitud], 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  agregarCapasMapa(map);
   const coords = paradas.filter(p => p.latitud && p.longitud).map(p => [p.latitud, p.longitud]);
+  const color = colorRuta || '#00A86B';
   if (coords.length) {
     if (geometria && geometria.coordinates && geometria.coordinates.length) {
-      L.geoJSON(geometria, { style: { color: '#00A86B', weight: 3 } }).addTo(map);
+      L.geoJSON(geometria, { style: { color, weight: 3 } }).addTo(map);
     } else {
-      L.polyline(coords, { color: '#00A86B', weight: 3 }).addTo(map);
+      L.polyline(coords, { color, weight: 3 }).addTo(map);
     }
     coords.forEach((c, i) => {
-      L.circleMarker(c, { radius: 6, color: '#00A86B', fillColor: '#fff', fillOpacity: 0.9, weight: 2 })
-        .addTo(map).bindPopup(`#${i+1} ${esc(paradas[i]?.cliente_nombre||'')}`);
+      if (i === 0) {
+        L.marker(c, { icon: L.divIcon({ html: '🏁', className: '', iconSize: [24, 24], iconAnchor: [12, 24] }) }).addTo(map)
+          .bindPopup(`<b>Salida</b><br>${esc(paradas[i]?.cliente_nombre||'')}`);
+      } else if (i === coords.length - 1) {
+        L.marker(c, { icon: L.divIcon({ html: '🚩', className: '', iconSize: [24, 24], iconAnchor: [12, 24] }) }).addTo(map)
+          .bindPopup(`<b>Llegada</b><br>${esc(paradas[i]?.cliente_nombre||'')}`);
+      } else {
+        L.circleMarker(c, { radius: 6, color, fillColor: '#fff', fillOpacity: 0.9, weight: 2 })
+          .addTo(map).bindPopup(`#${i+1} ${esc(paradas[i]?.cliente_nombre||'')}`);
+      }
     });
     map.fitBounds(coords, { padding: [30,30] });
   }
@@ -1933,7 +1947,7 @@ function initMapaPin(containerId, latInputId, lngInputId) {
   const hasCoords = !isNaN(latVal) && !isNaN(lngVal);
   const center = hasCoords ? [latVal, lngVal] : [6.2476, -75.5658];
   const map = L.map(container).setView(center, 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+  agregarCapasMapa(map);
   container._leafletMap = map;
   window._activeModalMap = map;
 
@@ -1983,6 +1997,21 @@ let mapLayers = { rutas: [], vehiculos: [], paradas: [], sedes: [] };
 const coloresRuta = ['#00A86B','#4f8ef7','#f7944f','#f7614f','#9b59b6','#1abc9c','#e67e22','#3498db'];
 let mapaFitted = false;
 
+const capasMapa = {
+  'Calle': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
+  'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' }),
+  'Oscuro': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' }),
+  'Claro': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' })
+};
+
+function agregarCapasMapa(map) {
+  const nombreDefault = localStorage.getItem('mapa_capa') || 'Calle';
+  const capa = capasMapa[nombreDefault] || capasMapa['Calle'];
+  map.addLayer(capa);
+  L.control.layers(capasMapa, null, { collapsed: true }).addTo(map);
+  map.on('baselayerchange', e => localStorage.setItem('mapa_capa', e.name));
+}
+
 function reiniciarMapa() {
   localStorage.removeItem('mapa_lat');
   localStorage.removeItem('mapa_lng');
@@ -2011,9 +2040,7 @@ async function cargarMapa() {
     const center = hasSaved ? [savedLat, savedLng] : [6.2476, -75.5658];
     const zoom = hasSaved ? savedZoom : 13;
     mapInstance = L.map(el).setView(center, zoom);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, attribution: '© OpenStreetMap'
-    }).addTo(mapInstance);
+    agregarCapasMapa(mapInstance);
     mapInstance.on('resize', () => mapInstance.invalidateSize());
     mapInstance.on('moveend', () => {
       const c = mapInstance.getCenter();
@@ -2063,7 +2090,7 @@ async function cargarMapa() {
       const paradasRuta = data.paradas.filter(p => p.ruta_id === r.id).filter(p => p.latitud && p.longitud);
       if (paradasRuta.length < 2) continue;
 
-      const color = coloresRuta[idx % coloresRuta.length];
+      const color = r.color_vehiculo || coloresRuta[idx % coloresRuta.length];
       const coords = paradasRuta.map(p => [p.latitud, p.longitud]);
 
       // polyline (road-following if geometry exists)

@@ -38,7 +38,11 @@ router.get('/diagnostico', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const ruta = await pool.query('SELECT * FROM logistics.rutas WHERE id=$1', [req.params.id]);
+    const ruta = await pool.query(
+      `SELECT r.*, v.placa, v.alias as vehiculo_alias, v.color as color_vehiculo
+       FROM logistics.rutas r
+       JOIN logistics.vehiculos v ON r.vehiculo_id=v.id
+       WHERE r.id=$1`, [req.params.id]);
     if (ruta.rows.length === 0) return res.status(404).json({ error: 'Ruta no encontrada' });
     const paradas = await pool.query(
       'SELECT * FROM logistics.paradas_ruta WHERE ruta_id=$1 ORDER BY secuencia', [req.params.id]
@@ -248,7 +252,7 @@ router.get('/mapa/datos', async (req, res) => {
       SELECT r.id, r.nombre, r.fecha, r.vehiculo_id, r.estado,
              r.distancia_total_estimada, r.tiempo_estimado, r.cantidad_paradas,
              r.geometria,
-             v.placa, v.alias as vehiculo_alias,
+             v.placa, v.alias as vehiculo_alias, v.color as color_vehiculo,
              v.ultima_posicion_lat, v.ultima_posicion_lng
       FROM logistics.rutas r
       JOIN logistics.vehiculos v ON r.vehiculo_id=v.id
