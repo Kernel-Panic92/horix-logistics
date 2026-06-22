@@ -225,7 +225,7 @@ router.get('/mapa/datos', async (req, res) => {
 
     const vehiculos = await pool.query(`
       SELECT id, placa, alias, ultima_posicion_lat, ultima_posicion_lng, estado
-      FROM logistics.vehiculos WHERE ultima_posicion_lat IS NOT NULL`);
+      FROM logistics.vehiculos WHERE ultima_posicion_lat IS NOT NULL AND ultima_posicion_lng IS NOT NULL`);
 
     res.json({
       exitosa: true,

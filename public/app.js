@@ -1897,6 +1897,7 @@ async function cargarMapa() {
           radius: 6, color, fillColor: '#fff', fillOpacity: 0.9, weight: 2
         }).addTo(mapInstance);
         marker.bindPopup(`<b>#${p.secuencia}</b> ${esc(p.cliente_nombre||'')}<br>${esc(p.numero_factura||'')}<br>${esc(p.direccion||'')}`);
+        marker.rutaId = r.id;
         mapLayers.paradas.push(marker);
       }
       idx++;
