@@ -447,7 +447,11 @@ function abrirModalPedido(data) {
       <div class="form-grid">
         <div class="form-group"><label>Factura *</label><input id="p-factura" value="${d.numero_factura||''}" placeholder="FEV-00001"></div>
         <div class="form-group"><label>Sede</label><select id="p-sede" onchange="filtrarVehiculosPorSede()"><option value="">Seleccione sede</option></select></div>
-        <div class="form-group"><label>Vehículo *</label><select id="p-vehiculo"><option value="">Seleccione vehículo</option></select></div>
+        <div class="form-group"><label>Vehículo *</label>
+          <input id="p-vehiculo-search" placeholder="Escriba para buscar..." autocomplete="off" oninput="buscarVehiculo()" onfocus="if(this.value)buscarVehiculo()">
+          <input type="hidden" id="p-vehiculo" value="${d.vehiculo_id||''}">
+          <div id="p-vehiculo-dropdown" class="dd-vehiculo"></div>
+        </div>
         <div class="form-group"><label>Cliente</label><input id="p-cliente" value="${d.cliente_nombre||''}" placeholder="Nombre del cliente"></div>
         <div class="form-group"><label>Dirección</label><input id="p-direccion" value="${d.direccion||''}" placeholder="Calle 123 #45-67"></div>
         <div class="form-group"><label>Ciudad</label><input id="p-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
@@ -733,19 +737,53 @@ async function poblarSedesRutas() {
   } catch {}
 }
 
+var _vehiculosCache = [];
+
 async function filtrarVehiculosPorSede(selectedId) {
-  const select = document.getElementById('p-vehiculo');
-  if (!select) return;
+  const input = document.getElementById('p-vehiculo-search');
+  if (!input) return;
   const sede = document.getElementById('p-sede')?.value;
   try {
     const q = sede ? `?q=${encodeURIComponent(sede)}` : '';
     const data = await api('/vehiculos' + q);
-    const vehiculos = data.vehiculos || [];
-    const actual = selectedId || select.value;
-    select.innerHTML = '<option value="">Todos los vehículos</option>' +
-      vehiculos.map(v => `<option value="${v.id}" ${v.id == actual ? 'selected' : ''}>${esc(v.placa)} - ${esc(v.alias || v.sede || 'Sin alias')}</option>`).join('');
-  } catch { select.innerHTML = '<option value="">Todos los vehículos</option>'; }
+    _vehiculosCache = data.vehiculos || [];
+    const actual = _vehiculosCache.find(v => v.id == (selectedId || document.getElementById('p-vehiculo').value));
+    input.value = actual ? esc(actual.placa) + ' - ' + esc(actual.alias || actual.sede || 'Sin alias') : '';
+    document.getElementById('p-vehiculo').value = actual ? actual.id : '';
+  } catch { input.value = ''; document.getElementById('p-vehiculo').value = ''; }
 }
+
+function buscarVehiculo() {
+  const input = document.getElementById('p-vehiculo-search');
+  const val = input.value.toLowerCase().trim();
+  const dd = document.getElementById('p-vehiculo-dropdown');
+  if (!val) { dd.innerHTML = ''; dd.classList.remove('show'); return; }
+  const filtrados = _vehiculosCache.filter(v =>
+    ((v.placa || '') + ' ' + (v.alias || v.sede || '')).toLowerCase().includes(val)
+  );
+  if (!filtrados.length) { dd.innerHTML = '<div class="dd-item disabled">Sin resultados</div>'; dd.classList.add('show'); return; }
+  dd.innerHTML = filtrados.map(v =>
+    `<div class="dd-item" data-id="${v.id}" onclick="seleccionarVehiculo(${v.id})">${esc(v.placa)} — ${esc(v.alias || v.sede || 'Sin alias')}</div>`
+  ).join('');
+  dd.classList.add('show');
+}
+
+function seleccionarVehiculo(id) {
+  const v = _vehiculosCache.find(x => x.id == id);
+  if (!v) return;
+  document.getElementById('p-vehiculo-search').value = esc(v.placa) + ' - ' + esc(v.alias || v.sede || 'Sin alias');
+  document.getElementById('p-vehiculo').value = v.id;
+  document.getElementById('p-vehiculo-dropdown').innerHTML = '';
+  document.getElementById('p-vehiculo-dropdown').classList.remove('show');
+}
+
+document.addEventListener('click', function(e) {
+  const dd = document.getElementById('p-vehiculo-dropdown');
+  if (dd && !e.target.closest('#p-vehiculo-search, #p-vehiculo-dropdown')) {
+    dd.innerHTML = '';
+    dd.classList.remove('show');
+  }
+});
 
 async function verRuta(id) {
   try {
