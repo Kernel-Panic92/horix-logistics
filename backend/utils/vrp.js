@@ -250,14 +250,26 @@ export class VRPSolver {
         throw new Error(matriz.error);
       }
 
-      // Paso 3: Asignar pedidos a vehículos (simple: round-robin)
+      // Paso 3: Asignar pedidos a vehículos respetando vehiculo_id del pedido
       const rutasPorVehiculo = {};
       vehiculosUsar.forEach(v => {
         rutasPorVehiculo[v.id] = [];
       });
 
-      let vehiculoIdx = 0;
+      const pedidosConVehiculo = [];
+      const pedidosSinVehiculo = [];
       for (const pedido of pedidosValidos) {
+        if (pedido.vehiculo_id && rutasPorVehiculo[pedido.vehiculo_id] !== undefined) {
+          pedidosConVehiculo.push(pedido);
+        } else {
+          pedidosSinVehiculo.push(pedido);
+        }
+      }
+      pedidosConVehiculo.forEach(p => rutasPorVehiculo[p.vehiculo_id].push(p));
+      console.log('[VRP] asignados por vehiculo_id:', pedidosConVehiculo.length, '| sin asignar:', pedidosSinVehiculo.length);
+
+      let vehiculoIdx = 0;
+      for (const pedido of pedidosSinVehiculo) {
         const vehiculo = vehiculosUsar[vehiculoIdx % vehiculosUsar.length];
         rutasPorVehiculo[vehiculo.id].push(pedido);
         vehiculoIdx++;
