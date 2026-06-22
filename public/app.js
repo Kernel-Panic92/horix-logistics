@@ -186,7 +186,26 @@ function mostrarAlerta(mensaje, tipo) {
   div.innerHTML = '<span class="icon">' + (iconos[tipo] || 'i') + '</span><span class="text">' + mensaje + '</span>';
   div.onclick = function() { descartarToast(div); };
   document.getElementById('toast-container').appendChild(div);
-  setTimeout(() => descartarToast(div), 4000);
+  setTimeout(() => descartarToast(div), 6000);
+}
+
+function confirmarModal(titulo, mensaje) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('modal-overlay');
+    document.getElementById('modal-title').textContent = titulo;
+    document.getElementById('modal-desc').textContent = mensaje;
+    document.getElementById('modal-body').innerHTML = '';
+    document.getElementById('modal-actions').innerHTML =
+      '<button class="btn btn-secondary" id="btn-confirm-no">Cancelar</button>' +
+      '<button class="btn btn-danger" id="btn-confirm-yes">Confirmar</button>';
+    overlay.classList.add('show');
+
+    function ocultar() {
+      overlay.classList.remove('show');
+    }
+    document.getElementById('btn-confirm-yes').onclick = function() { ocultar(); resolve(true); };
+    document.getElementById('btn-confirm-no').onclick = function() { ocultar(); resolve(false); };
+  });
 }
 function descartarToast(el) {
   if (!el || el.classList.contains('removing')) return;
@@ -616,18 +635,20 @@ async function guardarSede(id) {
 }
 
 /* ── Eliminar (genérico) ── */
-function confirmarEliminar(tipo, id, label) {
-  if (!confirm(label ? `¿Eliminar ${tipo} "${label}"?` : `¿Eliminar ${tipo} #${id}?`)) return;
+async function confirmarEliminar(tipo, id, label) {
+  const ok = await confirmarModal('Confirmar eliminación', label ? `¿Eliminar ${tipo} "${label}"?` : `¿Eliminar ${tipo} #${id}?`);
+  if (!ok) return;
   const endpoints = { vehiculo: '/vehiculos/', pedido: '/pedidos/', cliente: '/clientes/', sede: '/sedes/', ruta: '/rutas/' };
   const ep = endpoints[tipo];
   if (!ep) return;
-  api(ep + id, { method: 'DELETE' }).then(() => {
+  try {
+    await api(ep + id, { method: 'DELETE' });
     if (tipo === 'vehiculo') cargarVehiculos();
     else if (tipo === 'pedido') cargarPedidos();
     else if (tipo === 'cliente') cargarClientes();
     else if (tipo === 'sede') cargarSedes();
     else if (tipo === 'ruta') cargarRutas();
-  }).catch(e => mostrarAlerta(e.message, 'error'));
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── Bulk delete ── */
@@ -652,7 +673,8 @@ async function eliminarSeleccionados(tipo) {
   const checks = document.querySelectorAll('.cb-' + tipo + ':checked');
   if (!checks.length) return;
   const ids = Array.from(checks).map(c => +c.value);
-  if (!confirm(`¿Eliminar ${ids.length} ${tipo}(s) seleccionados?`)) return;
+  const ok = await confirmarModal('Confirmar eliminación', `¿Eliminar ${ids.length} ${tipo}(s) seleccionados?`);
+  if (!ok) return;
   const ep = { vehiculo: '/vehiculos/seleccionados', pedido: '/pedidos/seleccionados', cliente: '/clientes/seleccionados', ruta: '/rutas/' };
   try {
     if (tipo === 'ruta') {
@@ -777,7 +799,8 @@ async function generarRutas() {
     if (s) sedeId = s.id;
   }
   const msg = '¿Generar rutas optimizadas para ' + fecha + (sedeNombre ? ' (' + sedeNombre + ')' : '') + '?';
-  if (!confirm(msg)) return;
+  const ok = await confirmarModal('Generar rutas', msg);
+  if (!ok) return;
   try {
     const body = { fecha };
     if (sedeId) body.sede_id = sedeId;
@@ -1131,7 +1154,8 @@ async function descargarBackupServidor(nombre) {
 }
 
 async function restaurarBackupLocal(nombre) {
-  if (!confirm('¿Restaurar backup ' + nombre + '? Los datos actuales serán reemplazados.')) return;
+  const ok = await confirmarModal('Restaurar backup', '¿Restaurar backup ' + nombre + '? Los datos actuales serán reemplazados.');
+  if (!ok) return;
   try {
     const data = await api('/backup/restore/local/' + encodeURIComponent(nombre), { method: 'POST' });
     mostrarAlerta(data.mensaje || 'Restauración completada', 'success');
@@ -1473,7 +1497,8 @@ async function checkUpdates() {
 }
 
 async function ejecutarActualizacion() {
-  if (!confirm('¿Actualizar el sistema? El servicio se reiniciará automáticamente.')) return;
+  const ok = await confirmarModal('Actualizar sistema', '¿Actualizar el sistema? El servicio se reiniciará automáticamente.');
+  if (!ok) return;
   const btn = document.getElementById('btn-update-now');
   if (!btn) return;
   btn.disabled = true; btn.textContent = 'Actualizando...';
