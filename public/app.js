@@ -448,11 +448,21 @@ function abrirModalPedido(data) {
         <div class="form-group"><label>Factura *</label><input id="p-factura" value="${d.numero_factura||''}" placeholder="FEV-00001"></div>
         <div class="form-group"><label>Sede</label><select id="p-sede" onchange="filtrarVehiculosPorSede()"><option value="">Seleccione sede</option></select></div>
         <div class="form-group"><label>Vehículo *</label>
-          <input id="p-vehiculo-search" placeholder="Escriba para buscar..." autocomplete="off" oninput="buscarVehiculo()" onfocus="if(this.value)buscarVehiculo()">
+          <div class="input-wrap">
+            <input id="p-vehiculo-search" placeholder="Escriba para buscar..." autocomplete="off" oninput="buscarVehiculo()" onfocus="abrirDropdownVehiculo()">
+            <button class="btn-dd" type="button" onclick="abrirDropdownVehiculo()" tabindex="-1">▼</button>
+          </div>
           <input type="hidden" id="p-vehiculo" value="${d.vehiculo_id||''}">
-          <div id="p-vehiculo-dropdown" class="dd-vehiculo"></div>
+          <div id="p-vehiculo-dropdown" class="dd-search"></div>
         </div>
-        <div class="form-group"><label>Cliente</label><input id="p-cliente" value="${d.cliente_nombre||''}" placeholder="Nombre del cliente"></div>
+        <div class="form-group"><label>Cliente *</label>
+          <div class="input-wrap">
+            <input id="p-cliente-search" placeholder="Escriba para buscar..." autocomplete="off" oninput="buscarCliente()" onfocus="abrirDropdownCliente()">
+            <button class="btn-dd" type="button" onclick="abrirDropdownCliente()" tabindex="-1">▼</button>
+          </div>
+          <input type="hidden" id="p-cliente-id" value="${d.cliente_id||''}">
+          <div id="p-cliente-dropdown" class="dd-search"></div>
+        </div>
         <div class="form-group"><label>Dirección</label><input id="p-direccion" value="${d.direccion||''}" placeholder="Calle 123 #45-67"></div>
         <div class="form-group"><label>Ciudad</label><input id="p-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
         <div class="form-group"><label>Teléfono</label><input id="p-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
@@ -480,6 +490,13 @@ function abrirModalPedido(data) {
         _sedesCache.map(s => `<option value="${esc(s.nombre)}" ${s.nombre === d.sede ? 'selected' : ''}>${esc(s.nombre)}</option>`).join('');
     }
     await filtrarVehiculosPorSede(d.vehiculo_id);
+    try { const cr = await api('/clientes'); _clientesCache = cr.clientes || []; } catch { _clientesCache = []; }
+    if (d.cliente_nombre && !d.cliente_id) {
+      document.getElementById('p-cliente-search').value = d.cliente_nombre;
+    } else if (d.cliente_id) {
+      const c = _clientesCache.find(x => x.id == d.cliente_id);
+      if (c) { document.getElementById('p-cliente-search').value = c.nombre; document.getElementById('p-cliente-id').value = c.id; }
+    }
     configurarAutocompletePedido();
     initMapaPin('mapa-pin-pedido', 'p-lat', 'p-lng');
   }, 50);
@@ -492,7 +509,8 @@ function editarPedido(id) {
 async function guardarPedido(id) {
   const body = {
     numero_factura: document.getElementById('p-factura').value.trim(),
-    cliente_nombre: document.getElementById('p-cliente').value.trim(),
+    cliente_id: document.getElementById('p-cliente-id').value || null,
+    cliente_nombre: document.getElementById('p-cliente-search').value.trim(),
     direccion: document.getElementById('p-direccion').value.trim(),
     ciudad: document.getElementById('p-ciudad').value.trim(),
     telefono: document.getElementById('p-telefono').value.trim(),
@@ -505,6 +523,7 @@ async function guardarPedido(id) {
   };
   if (!body.numero_factura) { mostrarAlerta('La factura es requerida', 'warning'); return; }
   if (!body.vehiculo_id) { mostrarAlerta('Debe seleccionar un vehículo', 'warning'); return; }
+  if (!body.cliente_nombre) { mostrarAlerta('Debe seleccionar o escribir un cliente', 'warning'); return; }
   try {
     if (id) await api('/pedidos/' + id, { method: 'PUT', body: JSON.stringify(body) });
     else await api('/pedidos', { method: 'POST', body: JSON.stringify(body) });
@@ -748,24 +767,36 @@ async function filtrarVehiculosPorSede(selectedId) {
     const data = await api('/vehiculos' + q);
     _vehiculosCache = data.vehiculos || [];
     const actual = _vehiculosCache.find(v => v.id == (selectedId || document.getElementById('p-vehiculo').value));
-    input.value = actual ? esc(actual.placa) + ' - ' + esc(actual.alias || actual.sede || 'Sin alias') : '';
-    document.getElementById('p-vehiculo').value = actual ? actual.id : '';
+    if (actual) {
+      input.value = esc(actual.placa) + ' - ' + esc(actual.alias || actual.sede || 'Sin alias');
+      document.getElementById('p-vehiculo').value = actual.id;
+    } else if (selectedId) {
+      input.value = '';
+      document.getElementById('p-vehiculo').value = '';
+    }
   } catch { input.value = ''; document.getElementById('p-vehiculo').value = ''; }
 }
 
-function buscarVehiculo() {
-  const input = document.getElementById('p-vehiculo-search');
-  const val = input.value.toLowerCase().trim();
+function mostrarVehiculos(filtro) {
   const dd = document.getElementById('p-vehiculo-dropdown');
-  if (!val) { dd.innerHTML = ''; dd.classList.remove('show'); return; }
-  const filtrados = _vehiculosCache.filter(v =>
-    ((v.placa || '') + ' ' + (v.alias || v.sede || '')).toLowerCase().includes(val)
-  );
-  if (!filtrados.length) { dd.innerHTML = '<div class="dd-item disabled">Sin resultados</div>'; dd.classList.add('show'); return; }
-  dd.innerHTML = filtrados.map(v =>
+  let lista = _vehiculosCache;
+  if (filtro) {
+    const lower = filtro.toLowerCase();
+    lista = lista.filter(v => ((v.placa || '') + ' ' + (v.alias || v.sede || '')).toLowerCase().includes(lower));
+  }
+  if (!lista.length) { dd.innerHTML = '<div class="dd-item disabled">Sin resultados</div>'; dd.classList.add('show'); return; }
+  dd.innerHTML = lista.map(v =>
     `<div class="dd-item" data-id="${v.id}" onclick="seleccionarVehiculo(${v.id})">${esc(v.placa)} — ${esc(v.alias || v.sede || 'Sin alias')}</div>`
   ).join('');
   dd.classList.add('show');
+}
+
+function abrirDropdownVehiculo() {
+  if (_vehiculosCache.length) mostrarVehiculos(document.getElementById('p-vehiculo-search').value);
+}
+
+function buscarVehiculo() {
+  mostrarVehiculos(document.getElementById('p-vehiculo-search').value);
 }
 
 function seleccionarVehiculo(id) {
@@ -777,12 +808,47 @@ function seleccionarVehiculo(id) {
   document.getElementById('p-vehiculo-dropdown').classList.remove('show');
 }
 
-document.addEventListener('click', function(e) {
-  const dd = document.getElementById('p-vehiculo-dropdown');
-  if (dd && !e.target.closest('#p-vehiculo-search, #p-vehiculo-dropdown')) {
-    dd.innerHTML = '';
-    dd.classList.remove('show');
+var _clientesCache = [];
+
+function mostrarClientes(filtro) {
+  const dd = document.getElementById('p-cliente-dropdown');
+  let lista = _clientesCache;
+  if (filtro) {
+    const lower = filtro.toLowerCase();
+    lista = lista.filter(c => (c.nombre || '').toLowerCase().includes(lower));
   }
+  if (!lista.length) { dd.innerHTML = '<div class="dd-item disabled">Sin resultados</div>'; dd.classList.add('show'); return; }
+  dd.innerHTML = lista.map(c =>
+    `<div class="dd-item" data-id="${c.id}" onclick="seleccionarCliente(${c.id})">${esc(c.nombre)}${c.ciudad ? ' <span style="color:var(--muted)">— ' + esc(c.ciudad) + '</span>' : ''}</div>`
+  ).join('');
+  dd.classList.add('show');
+}
+
+function abrirDropdownCliente() {
+  if (_clientesCache.length) mostrarClientes(document.getElementById('p-cliente-search').value);
+}
+
+function buscarCliente() {
+  mostrarClientes(document.getElementById('p-cliente-search').value);
+}
+
+function seleccionarCliente(id) {
+  const c = _clientesCache.find(x => x.id == id);
+  if (!c) return;
+  document.getElementById('p-cliente-search').value = esc(c.nombre);
+  document.getElementById('p-cliente-id').value = c.id;
+  document.getElementById('p-cliente-dropdown').innerHTML = '';
+  document.getElementById('p-cliente-dropdown').classList.remove('show');
+}
+
+document.addEventListener('click', function(e) {
+  ['p-vehiculo-dropdown', 'p-cliente-dropdown'].forEach(id => {
+    const dd = document.getElementById(id);
+    if (dd && !e.target.closest('#p-vehiculo-search, #p-vehiculo-dropdown, #p-cliente-search, #p-cliente-dropdown, .btn-dd')) {
+      dd.innerHTML = '';
+      dd.classList.remove('show');
+    }
+  });
 });
 
 async function verRuta(id) {

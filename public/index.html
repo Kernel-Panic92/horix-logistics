@@ -123,13 +123,17 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 .toast.info{border-left:3px solid var(--accent)}
 @keyframes toast-in{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
 
-/* ── Dropdown búsqueda vehículo ── */
-.dd-vehiculo{display:none;position:absolute;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;width:100%;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
-.dd-vehiculo.show{display:block}
-.dd-vehiculo .dd-item{padding:8px 12px;cursor:pointer;font-size:13px;transition:background .12s}
-.dd-vehiculo .dd-item:hover{background:var(--surface2);color:var(--accent)}
-.dd-vehiculo .dd-item.disabled{color:var(--muted);cursor:default}
+/* ── Dropdown búsqueda ── */
+.dd-search{display:none;position:absolute;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;width:100%;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.dd-search.show{display:block}
+.dd-search .dd-item{padding:8px 12px;cursor:pointer;font-size:13px;transition:background .12s}
+.dd-search .dd-item:hover{background:var(--surface2);color:var(--accent)}
+.dd-search .dd-item.disabled{color:var(--muted);cursor:default}
 .form-group{position:relative}
+.input-wrap{display:flex;align-items:stretch;gap:0}
+.input-wrap input{flex:1;border-radius:8px 0 0 8px}
+.input-wrap .btn-dd{width:36px;border:1px solid var(--border);border-left:none;border-radius:0 8px 8px 0;background:var(--surface2);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;transition:color .12s}
+.input-wrap .btn-dd:hover{color:var(--text)}
 
 /* ── Mapa pin (modal) ── */
 .mapa-pin{height:220px;border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-top:8px}
