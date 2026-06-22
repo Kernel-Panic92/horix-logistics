@@ -250,29 +250,20 @@ export class VRPSolver {
         throw new Error(matriz.error);
       }
 
-      // Paso 3: Asignar pedidos a vehículos respetando vehiculo_id del pedido
+      // Paso 3: Asignar pedidos a vehículos según vehiculo_id del pedido
       const rutasPorVehiculo = {};
-      vehiculosUsar.forEach(v => {
-        rutasPorVehiculo[v.id] = [];
-      });
+      vehiculosUsar.forEach(v => { rutasPorVehiculo[v.id] = []; });
 
-      const pedidosConVehiculo = [];
-      const pedidosSinVehiculo = [];
+      const ignorados = [];
       for (const pedido of pedidosValidos) {
         if (pedido.vehiculo_id && rutasPorVehiculo[pedido.vehiculo_id] !== undefined) {
-          pedidosConVehiculo.push(pedido);
+          rutasPorVehiculo[pedido.vehiculo_id].push(pedido);
         } else {
-          pedidosSinVehiculo.push(pedido);
+          ignorados.push(pedido.id);
         }
       }
-      pedidosConVehiculo.forEach(p => rutasPorVehiculo[p.vehiculo_id].push(p));
-      console.log('[VRP] asignados por vehiculo_id:', pedidosConVehiculo.length, '| sin asignar:', pedidosSinVehiculo.length);
-
-      let vehiculoIdx = 0;
-      for (const pedido of pedidosSinVehiculo) {
-        const vehiculo = vehiculosUsar[vehiculoIdx % vehiculosUsar.length];
-        rutasPorVehiculo[vehiculo.id].push(pedido);
-        vehiculoIdx++;
+      if (ignorados.length > 0) {
+        console.log('[VRP] pedidos sin vehiculo_id válido (ignorados):', ignorados);
       }
 
       // Paso 4: Optimizar cada ruta individual

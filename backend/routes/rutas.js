@@ -72,6 +72,12 @@ router.post('/generar', async (req, res) => {
     );
     if (pedidos.rows.length === 0) return res.status(400).json({ error: 'No hay pedidos pendientes con coordenadas. Asegúrate de que los pedidos tengan latitud y longitud.' });
 
+    const sinVehiculo = pedidos.rows.filter(p => !p.vehiculo_id);
+    if (sinVehiculo.length > 0) {
+      const ids = sinVehiculo.map(p => p.id).join(', ');
+      return res.status(400).json({ error: `${sinVehiculo.length} pedido(s) no tienen vehículo asignado (IDs: ${ids}). Asigne un vehículo a cada pedido antes de generar rutas.` });
+    }
+
     const vehiculos = await pool.query(
       `SELECT id, placa, ultima_posicion_lat AS lat, ultima_posicion_lng AS lng
        FROM logistics.vehiculos WHERE estado='disponible'`

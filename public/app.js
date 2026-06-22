@@ -447,7 +447,7 @@ function abrirModalPedido(data) {
       <div class="form-grid">
         <div class="form-group"><label>Factura *</label><input id="p-factura" value="${d.numero_factura||''}" placeholder="FEV-00001"></div>
         <div class="form-group"><label>Sede</label><select id="p-sede" onchange="filtrarVehiculosPorSede()"><option value="">Seleccione sede</option></select></div>
-        <div class="form-group"><label>Vehículo</label><select id="p-vehiculo"><option value="">Todos los vehículos</option></select></div>
+        <div class="form-group"><label>Vehículo *</label><select id="p-vehiculo"><option value="">Seleccione vehículo</option></select></div>
         <div class="form-group"><label>Cliente</label><input id="p-cliente" value="${d.cliente_nombre||''}" placeholder="Nombre del cliente"></div>
         <div class="form-group"><label>Dirección</label><input id="p-direccion" value="${d.direccion||''}" placeholder="Calle 123 #45-67"></div>
         <div class="form-group"><label>Ciudad</label><input id="p-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
@@ -500,6 +500,7 @@ async function guardarPedido(id) {
     vehiculo_id: document.getElementById('p-vehiculo').value || null
   };
   if (!body.numero_factura) { mostrarAlerta('La factura es requerida', 'warning'); return; }
+  if (!body.vehiculo_id) { mostrarAlerta('Debe seleccionar un vehículo', 'warning'); return; }
   try {
     if (id) await api('/pedidos/' + id, { method: 'PUT', body: JSON.stringify(body) });
     else await api('/pedidos', { method: 'POST', body: JSON.stringify(body) });

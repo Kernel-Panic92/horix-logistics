@@ -59,6 +59,7 @@ router.post('/', async (req, res) => {
   try {
     const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede, latitud, longitud, vehiculo_id } = req.body;
     if (!numero_factura) return res.status(400).json({ error: 'numero_factura requerido' });
+    if (!vehiculo_id) return res.status(400).json({ error: 'vehiculo_id requerido' });
     const result = await pool.query(
       `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede, latitud, longitud, vehiculo_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
