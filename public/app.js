@@ -855,7 +855,7 @@ async function cargarRutas() {
         <td>${r.tiempo_estimado ? r.tiempo_estimado+' min' : '—'}</td>
         <td><span class="badge badge-${r.estado==='planificada'?'info':r.estado==='en_ejecucion'?'warning':r.estado==='completada'?'success':'danger'}">${r.estado}</span></td>
         <td>${r.fecha ? r.fecha.slice(0,10) : '—'}</td>
-        <td><button class="btn btn-sm btn-secondary" onclick="verRuta(${r.id})">👁️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('ruta',${r.id})">🗑️</button></td>
+        <td><button class="btn btn-sm btn-secondary" onclick="verRuta(${r.id})">👁️</button> <button class="btn btn-sm btn-secondary" onclick="exportarRutaGMaps(${r.id})" title="Google Maps">🌐</button> <button class="btn btn-sm btn-secondary" onclick="exportarRutaWaze(${r.id})" title="Waze">🧭</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('ruta',${r.id})">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -994,7 +994,9 @@ async function verRuta(id) {
         ${paradas.map(p => `<tr><td>${p.secuencia}</td><td>${esc(p.cliente_nombre||'—')}</td><td class="truncate">${esc(p.direccion||'')}</td><td><span class="badge badge-${p.estado==='completada'?'success':'warning'}">${p.estado}</span></td></tr>`).join('')}
       </tbody></table></div>
       ${tienenCoords ? '<div id="mapa-ruta-detalle" style="height:280px;border-radius:10px;border:1px solid var(--border);"></div>' : ''}`,
-      `<button class="btn btn-secondary" onclick="cerrarRutaDetalle()">Cerrar</button>`
+      `<button class="btn btn-secondary" onclick="exportarRutaGMaps(${id})">🌐 Google Maps</button>
+       <button class="btn btn-secondary" onclick="exportarRutaWaze(${id})">🧭 Waze</button>
+       <button class="btn btn-secondary" onclick="cerrarRutaDetalle()">Cerrar</button>`
     );
     if (tienenCoords) setTimeout(() => {
       const color = r.color_vehiculo || null;
@@ -1040,6 +1042,30 @@ function cerrarRutaDetalle() {
   const el = document.getElementById('mapa-ruta-detalle');
   if (el && el._leafletMap) { el._leafletMap.remove(); el._leafletMap = null; }
   cerrarModal();
+}
+
+async function exportarRutaGMaps(id) {
+  try {
+    const data = await api('/rutas/' + id);
+    const paradas = (data.paradas||[]).filter(p => p.latitud && p.longitud);
+    if (paradas.length < 1) { mostrarAlerta('La ruta no tiene paradas con coordenadas', 'warning'); return; }
+    const origin = `${paradas[0].latitud},${paradas[0].longitud}`;
+    const dest = `${paradas[paradas.length-1].latitud},${paradas[paradas.length-1].longitud}`;
+    const waypoints = paradas.slice(1, -1).map(p => `${p.latitud},${p.longitud}`).join('|');
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`;
+    if (waypoints) url += `&waypoints=${waypoints}`;
+    window.open(url, '_blank');
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
+}
+
+async function exportarRutaWaze(id) {
+  try {
+    const data = await api('/rutas/' + id);
+    const paradas = (data.paradas||[]).filter(p => p.latitud && p.longitud);
+    if (paradas.length < 1) { mostrarAlerta('La ruta no tiene paradas con coordenadas', 'warning'); return; }
+    const last = paradas[paradas.length - 1];
+    window.open(`https://www.waze.com/ul?ll=${last.latitud},${last.longitud}&navigate=yes`, '_blank');
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 async function generarRutas() {
@@ -2007,12 +2033,24 @@ const capasMapa = {
   'Claro': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' })
 };
 
+const fallbackTileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
 function agregarCapasMapa(map) {
   const nombreDefault = localStorage.getItem('mapa_capa') || 'Calle';
-  const capa = capasMapa[nombreDefault] || capasMapa['Calle'];
+  let capa = capasMapa[nombreDefault] || capasMapa['Calle'];
   map.addLayer(capa);
   L.control.layers(capasMapa, null, { collapsed: true }).addTo(map);
   map.on('baselayerchange', e => localStorage.setItem('mapa_capa', e.name));
+  // Fallback si los tiles no cargan
+  map.on('tileerror', function() {
+    const nombre = localStorage.getItem('mapa_capa') || 'Calle';
+    if (nombre === 'Calle') {
+      localStorage.setItem('mapa_capa', 'Claro');
+      const nueva = capasMapa['Claro'];
+      map.eachLayer(l => { if (l instanceof L.TileLayer) map.removeLayer(l); });
+      map.addLayer(nueva);
+    }
+  });
 }
 
 function reiniciarMapa() {
