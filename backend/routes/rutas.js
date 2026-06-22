@@ -51,7 +51,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/generar', async (req, res) => {
   try {
-    const { fecha, sede, sede_id } = req.body;
+    const { fecha, sede, sede_id, ruta } = req.body;
     if (!fecha) return res.status(400).json({ error: 'Fecha requerida' });
 
     let depot = null;
@@ -67,16 +67,14 @@ router.post('/generar', async (req, res) => {
     }
 
     const pedidos = await pool.query(
-      `SELECT id, latitud AS lat, longitud AS lng, peso_estimado, volumen_estimado, vehiculo_id
-       FROM logistics.pedidos_logistica WHERE estado='pendiente' AND ruta_id IS NULL AND latitud IS NOT NULL AND longitud IS NOT NULL`
+      `SELECT p.id, p.latitud AS lat, p.longitud AS lng, p.peso_estimado, p.volumen_estimado,
+              p.vehiculo_id, p.cliente_nombre, p.direccion, c.ruta AS cliente_ruta
+       FROM logistics.pedidos_logistica p
+       LEFT JOIN logistics.clientes c ON c.id = p.cliente_id
+       WHERE p.estado='pendiente' AND p.ruta_id IS NULL
+         AND p.latitud IS NOT NULL AND p.longitud IS NOT NULL`
     );
     if (pedidos.rows.length === 0) return res.status(400).json({ error: 'No hay pedidos pendientes con coordenadas. Asegúrate de que los pedidos tengan latitud y longitud.' });
-
-    const sinVehiculo = pedidos.rows.filter(p => !p.vehiculo_id);
-    if (sinVehiculo.length > 0) {
-      const ids = sinVehiculo.map(p => p.id).join(', ');
-      return res.status(400).json({ error: `${sinVehiculo.length} pedido(s) no tienen vehículo asignado (IDs: ${ids}). Asigne un vehículo a cada pedido antes de generar rutas.` });
-    }
 
     const vehiculos = await pool.query(
       `SELECT id, placa, ultima_posicion_lat AS lat, ultima_posicion_lng AS lng
@@ -84,27 +82,53 @@ router.post('/generar', async (req, res) => {
     );
     if (vehiculos.rows.length === 0) return res.status(400).json({ error: 'No hay vehículos disponibles' });
 
+    // Agrupar pedidos por cliente.ruta
+    const grupos = {};
+    for (const p of pedidos.rows) {
+      const key = p.cliente_ruta || 'Sin ruta';
+      if (ruta && key !== ruta) continue;
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(p);
+    }
+    const nombresRuta = Object.keys(grupos);
+    if (nombresRuta.length === 0) return res.status(400).json({
+      error: ruta ? `No hay pedidos pendientes para la ruta "${ruta}"` : 'No hay pedidos pendientes con ruta asignada. Asigne una ruta a los clientes primero.'
+    });
+
     const osrmUrl = process.env.OSRM_URL || 'https://router.project-osrm.org';
-    console.log('[rutas/generar] depot:', depot, 'pedidos:', pedidos.rows.length, 'vehiculos:', vehiculos.rows.length);
-    const resultado = await generarRutasOptimizadas(pedidos.rows, vehiculos.rows, osrmUrl, depot);
-    console.log('[rutas/generar] resultado:', resultado);
-
-    if (!resultado.exitosa) return res.status(500).json({ error: resultado.error });
-
     const rutasCreadas = [];
-    for (const r of resultado.rutas) {
-      const vehiculo = vehiculos.rows.find(v => v.id === r.vehiculoId);
-      const nombre = `Ruta ${vehiculo?.placa || r.vehiculoId} - ${fecha}`;
+    let vehiculoIdx = 0;
+
+    for (const nombreRuta of nombresRuta) {
+      const grupo = grupos[nombreRuta];
+      const vehiculo = vehiculos.rows[vehiculoIdx % vehiculos.rows.length];
+      vehiculoIdx++;
+
+      console.log(`[rutas/generar] grupo "${nombreRuta}": ${grupo.length} pedidos, vehiculo #${vehiculo.id} (${vehiculo.placa})`);
+
+      // Asignar vehiculo_id del vehículo a cada pedido del grupo para que el VRP lo agrupe correctamente
+      const pedidosGrupo = grupo.map(p => ({ ...p, vehiculo_id: vehiculo.id }));
+
+      const resultado = await generarRutasOptimizadas(pedidosGrupo, [vehiculo], osrmUrl, depot);
+      console.log(`[rutas/generar] resultado grupo "${nombreRuta}":`, resultado);
+
+      if (!resultado.exitosa || resultado.rutas.length === 0) {
+        console.log(`[rutas/generar] grupo "${nombreRuta}" no generó ruta:`, resultado.error || 'sin rutas');
+        continue;
+      }
+
+      const rOpt = resultado.rutas[0];
+      const nombre = `${nombreRuta} - ${fecha}`;
       const nuevaRuta = await pool.query(
         `INSERT INTO logistics.rutas (nombre, fecha, vehiculo_id, sede, distancia_total_estimada,
          tiempo_estimado, estado, cantidad_paradas)
          VALUES ($1,$2,$3,$4,$5,$6,'planificada',$7) RETURNING *`,
-        [nombre, fecha, r.vehiculoId, sedeNombre, r.distancia, r.duracion, r.paradas.length]
+        [nombre, fecha, rOpt.vehiculoId, sedeNombre, rOpt.distancia, rOpt.duracion, rOpt.paradas.length]
       );
       const rutaId = nuevaRuta.rows[0].id;
 
-      for (let i = 0; i < r.paradas.length; i++) {
-        const p = r.paradas[i];
+      for (let i = 0; i < rOpt.paradas.length; i++) {
+        const p = rOpt.paradas[i];
         await pool.query(
           `INSERT INTO logistics.paradas_ruta (ruta_id, pedido_id, secuencia, latitud, longitud,
            cliente_nombre, estado)
@@ -121,7 +145,7 @@ router.post('/generar', async (req, res) => {
 
     res.status(201).json({
       exitosa: true,
-      mensaje: `${rutasCreadas.length} rutas creadas`,
+      mensaje: `${rutasCreadas.length} ruta(s) creada(s) de ${nombresRuta.length} grupo(s)`,
       rutas: rutasCreadas
     });
   } catch (err) {

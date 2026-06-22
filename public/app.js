@@ -544,6 +544,7 @@ function abrirModalCliente(data) {
         <div class="form-group"><label>Dirección</label><input id="c-direccion" value="${d.direccion||''}" placeholder="Busca y selecciona una dirección..." autocomplete="off"></div>
         <div class="form-group"><label>Ciudad</label><input id="c-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
         <div class="form-group"><label>Teléfono</label><input id="c-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
+        <div class="form-group"><label>Ruta</label><input id="c-ruta" value="${d.ruta||''}" placeholder="Ej: Ruta 2, Zona Norte"></div>
         <div class="form-group"><label>Latitud</label><input type="number" step="any" id="c-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
         <div class="form-group"><label>Longitud</label><input type="number" step="any" id="c-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
       </div>
@@ -566,6 +567,7 @@ async function guardarCliente(id) {
     direccion: document.getElementById('c-direccion').value.trim(),
     ciudad: document.getElementById('c-ciudad').value.trim(),
     telefono: document.getElementById('c-telefono').value.trim(),
+    ruta: document.getElementById('c-ruta').value.trim() || null,
     latitud: document.getElementById('c-lat').value ? +document.getElementById('c-lat').value : null,
     longitud: document.getElementById('c-lng').value ? +document.getElementById('c-lng').value : null
   };
@@ -719,6 +721,7 @@ async function cargarRutas() {
   const fecha = document.getElementById('filtro-fecha').value;
   const sede = document.getElementById('filtro-rutas-sede')?.value || '';
   poblarSedesRutas();
+  poblarRutasZona();
   try {
     const params = new URLSearchParams();
     if (fecha) params.set('fecha', fecha);
@@ -753,6 +756,17 @@ async function poblarSedesRutas() {
     const actual = select.value;
     select.innerHTML = '<option value="">Todas las sedes</option>' +
       _sedesCache.map(s => `<option value="${esc(s.nombre)}" ${s.nombre===actual?'selected':''}>${esc(s.nombre)}</option>`).join('');
+  } catch {}
+}
+
+async function poblarRutasZona() {
+  const select = document.getElementById('filtro-ruta-zona');
+  if (!select) return;
+  try {
+    const data = await api('/clientes?q=');
+    const rutas = [...new Set((data.clientes||[]).map(c => c.ruta).filter(Boolean))].sort();
+    select.innerHTML = '<option value="">Todas las zonas</option>' +
+      rutas.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
   } catch {}
 }
 
@@ -903,12 +917,14 @@ async function generarRutas() {
     const s = _sedesCache.find(x => x.nombre === sedeNombre);
     if (s) sedeId = s.id;
   }
-  const msg = '¿Generar rutas optimizadas para ' + fecha + (sedeNombre ? ' (' + sedeNombre + ')' : '') + '?';
+  const rutaZona = document.getElementById('filtro-ruta-zona')?.value || '';
+  const msg = '¿Generar rutas optimizadas para ' + fecha + (sedeNombre ? ' (' + sedeNombre + ')' : '') + (rutaZona ? ' — ' + rutaZona : '') + '?';
   const ok = await confirmarModal('Generar rutas', msg);
   if (!ok) return;
   try {
     const body = { fecha };
     if (sedeId) body.sede_id = sedeId;
+    if (rutaZona) body.ruta = rutaZona;
     const data = await api('/rutas/generar', { method: 'POST', body: JSON.stringify(body) });
     mostrarAlerta(data.mensaje || 'Rutas generadas', 'success');
     cargarRutas();
