@@ -1049,9 +1049,16 @@ async function exportarRutaGMaps(id) {
     const data = await api('/rutas/' + id);
     const paradas = (data.paradas||[]).filter(p => p.latitud && p.longitud);
     if (paradas.length < 1) { mostrarAlerta('La ruta no tiene paradas con coordenadas', 'warning'); return; }
-    const origin = `${paradas[0].latitud},${paradas[0].longitud}`;
+    const r = data.ruta;
+    // Origen: primer punto de la geometria (depot) o primera parada
+    let origin;
+    if (r.geometria && r.geometria.coordinates && r.geometria.coordinates.length) {
+      origin = `${r.geometria.coordinates[0][1]},${r.geometria.coordinates[0][0]}`;
+    } else {
+      origin = `${paradas[0].latitud},${paradas[0].longitud}`;
+    }
     const dest = `${paradas[paradas.length-1].latitud},${paradas[paradas.length-1].longitud}`;
-    const waypoints = paradas.slice(1, -1).map(p => `${p.latitud},${p.longitud}`).join('|');
+    const waypoints = paradas.slice(0, -1).map(p => `${p.latitud},${p.longitud}`).join('|');
     let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`;
     if (waypoints) url += `&waypoints=${waypoints}`;
     window.open(url, '_blank');
@@ -1063,8 +1070,10 @@ async function exportarRutaWaze(id) {
     const data = await api('/rutas/' + id);
     const paradas = (data.paradas||[]).filter(p => p.latitud && p.longitud);
     if (paradas.length < 1) { mostrarAlerta('La ruta no tiene paradas con coordenadas', 'warning'); return; }
-    const last = paradas[paradas.length - 1];
-    window.open(`https://www.waze.com/ul?ll=${last.latitud},${last.longitud}&navigate=yes`, '_blank');
+    const r = data.ruta;
+    // Waze no soporta multiparada, abrimos con la primera parada de entrega
+    const dest = `${paradas[0].latitud},${paradas[0].longitud}`;
+    window.open(`https://www.waze.com/ul?ll=${dest}&navigate=yes`, '_blank');
   } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
