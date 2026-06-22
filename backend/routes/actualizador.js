@@ -69,8 +69,13 @@ router.post('/check', soloAdmin, async (req, res) => {
     logUpdater(`Local: ${currentCommit} | Remote: ${remoteCommit} (rama: ${branch})`);
     const behind = currentCommit !== remoteCommit ? 1 : 0;
     let changes = [];
-    if (behind > 0) { logUpdater(`Nueva versión disponible: ${remoteCommit}`); changes = [remoteCommit]; }
-    else { logUpdater('Sistema actualizado'); }
+    if (behind > 0) {
+      logUpdater(`Nueva versión disponible: ${remoteCommit}`);
+      try {
+        const logOut = execSync(`git log --oneline HEAD..origin/${branch}`, { cwd: APP_DIR, stdio: 'pipe' }).toString().trim();
+        changes = logOut ? logOut.split('\n') : [remoteCommit];
+      } catch { changes = [remoteCommit]; }
+    } else { logUpdater('Sistema actualizado'); }
     res.json({ ok: true, hasUpdates: behind > 0, commitsBehind: behind, currentCommit, remoteCommit, changes });
   } catch (err) { logUpdater(`Error verificando: ${err.message}`); res.json({ ok: false, error: err.message }); }
 });
