@@ -54,28 +54,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
-  try {
-    const { nombre, direccion, ciudad, telefono, latitud, longitud, ruta, ruta_moto, codigo_siesa } = req.body;
-    const result = await pool.query(
-      `UPDATE logistics.clientes SET
-        nombre=COALESCE($1,nombre), direccion=COALESCE($2,direccion),
-        ciudad=COALESCE($3,ciudad), telefono=COALESCE($4,telefono),
-        latitud=COALESCE($5,latitud), longitud=COALESCE($6,longitud),
-        ruta=COALESCE($7,ruta), ruta_moto=COALESCE($8,ruta_moto),
-        codigo_siesa=COALESCE($9,codigo_siesa),
-        geocodificado=CASE WHEN $5 IS NOT NULL AND $6 IS NOT NULL THEN TRUE ELSE geocodificado END,
-        updated_at=CURRENT_TIMESTAMP
-       WHERE id=$10 RETURNING *`,
-      [nombre, direccion, ciudad, telefono, latitud, longitud, ruta, ruta_moto, codigo_siesa, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
-    res.json({ cliente: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 router.put('/asignar-ruta-masivo', async (req, res) => {
   try {
     const { ids, ruta, ruta_moto } = req.body;
@@ -102,6 +80,28 @@ router.put('/asignar-ruta-masivo', async (req, res) => {
       total: ids.length,
       mensaje: `${result.rows.length} cliente(s) actualizado(s)`
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const { nombre, direccion, ciudad, telefono, latitud, longitud, ruta, ruta_moto, codigo_siesa } = req.body;
+    const result = await pool.query(
+      `UPDATE logistics.clientes SET
+        nombre=COALESCE($1,nombre), direccion=COALESCE($2,direccion),
+        ciudad=COALESCE($3,ciudad), telefono=COALESCE($4,telefono),
+        latitud=COALESCE($5,latitud), longitud=COALESCE($6,longitud),
+        ruta=COALESCE($7,ruta), ruta_moto=COALESCE($8,ruta_moto),
+        codigo_siesa=COALESCE($9,codigo_siesa),
+        geocodificado=CASE WHEN $5 IS NOT NULL AND $6 IS NOT NULL THEN TRUE ELSE geocodificado END,
+        updated_at=CURRENT_TIMESTAMP
+       WHERE id=$10 RETURNING *`,
+      [nombre, direccion, ciudad, telefono, latitud, longitud, ruta, ruta_moto, codigo_siesa, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
+    res.json({ cliente: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

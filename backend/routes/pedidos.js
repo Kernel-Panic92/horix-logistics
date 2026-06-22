@@ -71,36 +71,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
-  try {
-    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id } = req.body;
-    const result = await pool.query(
-      `UPDATE logistics.pedidos_logistica SET
-        numero_factura=COALESCE($1,numero_factura),
-        cliente_id=COALESCE($2,cliente_id),
-        cliente_nombre=COALESCE($3,cliente_nombre),
-        direccion=COALESCE($4,direccion),
-        ciudad=COALESCE($5,ciudad),
-        telefono=COALESCE($6,telefono),
-        valor_credito=COALESCE($7,valor_credito),
-        estado=COALESCE($8,estado),
-        ruta_id=COALESCE($9,ruta_id),
-        secuencia_en_ruta=COALESCE($10,secuencia_en_ruta),
-        sede=COALESCE($11,sede),
-        latitud=COALESCE($12,latitud),
-        longitud=COALESCE($13,longitud),
-        vehiculo_id=COALESCE($14,vehiculo_id),
-        updated_at=CURRENT_TIMESTAMP
-       WHERE id=$15 RETURNING *`,
-      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
-    res.json({ exitosa: true, pedido: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 router.put('/asignar-masivo', async (req, res) => {
   try {
     const { ids, vehiculo_id, sede } = req.body;
@@ -128,6 +98,36 @@ router.put('/asignar-masivo', async (req, res) => {
       ignorados,
       mensaje: `${result.rows.length} pedido(s) actualizado(s)${ignorados ? `, ${ignorados} ignorado(s) por estar en una ruta` : ''}`
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id } = req.body;
+    const result = await pool.query(
+      `UPDATE logistics.pedidos_logistica SET
+        numero_factura=COALESCE($1,numero_factura),
+        cliente_id=COALESCE($2,cliente_id),
+        cliente_nombre=COALESCE($3,cliente_nombre),
+        direccion=COALESCE($4,direccion),
+        ciudad=COALESCE($5,ciudad),
+        telefono=COALESCE($6,telefono),
+        valor_credito=COALESCE($7,valor_credito),
+        estado=COALESCE($8,estado),
+        ruta_id=COALESCE($9,ruta_id),
+        secuencia_en_ruta=COALESCE($10,secuencia_en_ruta),
+        sede=COALESCE($11,sede),
+        latitud=COALESCE($12,latitud),
+        longitud=COALESCE($13,longitud),
+        vehiculo_id=COALESCE($14,vehiculo_id),
+        updated_at=CURRENT_TIMESTAMP
+       WHERE id=$15 RETURNING *`,
+      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
+    res.json({ exitosa: true, pedido: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
