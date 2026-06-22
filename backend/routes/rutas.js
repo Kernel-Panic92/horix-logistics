@@ -110,54 +110,57 @@ router.post('/generar', async (req, res) => {
     );
     if (vehiculos.rows.length === 0) return res.status(400).json({ error: 'No hay vehículos disponibles' });
 
-    // Filtrar vehículos por la sede detectada/Seleccionada
-    let vehiculosDisponibles = vehiculos.rows;
-    if (sedeNombre) {
-      const filtrados = vehiculosDisponibles.filter(v => v.sede === sedeNombre);
-      if (filtrados.length > 0) {
-        vehiculosDisponibles = filtrados;
-        console.log(`[rutas/generar] ${filtrados.length} vehículo(s) filtrados por sede "${sedeNombre}"`);
-      } else {
-        console.log(`[rutas/generar] sin vehículos en sede "${sedeNombre}", usando todos los disponibles`);
-      }
+    // Filtrar pedidos por zona si se especificó
+    let pedidosFiltrados = pedidos.rows;
+    if (ruta) {
+      pedidosFiltrados = pedidosFiltrados.filter(p => p.cliente_ruta === ruta);
     }
 
-    // Agrupar pedidos por cliente.ruta
-    const grupos = {};
-    for (const p of pedidos.rows) {
-      const key = p.cliente_ruta || 'Sin ruta';
-      if (ruta && key !== ruta) continue;
-      if (!grupos[key]) grupos[key] = [];
-      grupos[key].push(p);
-    }
-    const nombresRuta = Object.keys(grupos);
-    if (nombresRuta.length === 0) return res.status(400).json({
-      error: ruta ? `No hay pedidos pendientes para la ruta "${ruta}"` : 'No hay pedidos pendientes con ruta asignada. Asigne una ruta a los clientes primero.'
+    // Separar pedidos con vehiculo_id asignado
+    const pedidosConVehiculo = pedidosFiltrados.filter(p => p.vehiculo_id);
+    const pedidosSinVehiculo = pedidosFiltrados.filter(p => !p.vehiculo_id);
+    if (pedidosConVehiculo.length === 0) return res.status(400).json({
+      error: 'Ningún pedido pendiente tiene vehículo asignado. Asigne un vehículo a los pedidos primero.'
     });
+
+    // Agrupar pedidos por vehiculo_id (el vehículo que ya tiene asignado cada pedido)
+    const gruposPorVehiculo = {};
+    for (const p of pedidosConVehiculo) {
+      if (!gruposPorVehiculo[p.vehiculo_id]) gruposPorVehiculo[p.vehiculo_id] = [];
+      gruposPorVehiculo[p.vehiculo_id].push(p);
+    }
+
+    // Obtener datos de los vehículos asignados a los pedidos
+    const vehiculoIds = Object.keys(gruposPorVehiculo).map(Number);
+    const vehiculosAsignados = vehiculos.rows.filter(v => vehiculoIds.includes(v.id));
+    if (vehiculosAsignados.length === 0) return res.status(400).json({
+      error: 'No se encontraron los vehículos asignados a los pedidos.'
+    });
+
+    console.log(`[rutas/generar] ${pedidosConVehiculo.length} pedidos agrupados en ${vehiculosAsignados.length} vehículo(s)`);
+    if (pedidosSinVehiculo.length > 0) {
+      console.log(`[rutas/generar] ${pedidosSinVehiculo.length} pedido(s) ignorados por no tener vehículo asignado`);
+    }
 
     const osrmUrl = process.env.OSRM_URL || 'https://router.project-osrm.org';
     const rutasCreadas = [];
-    let vehiculoIdx = 0;
 
-    for (const nombreRuta of nombresRuta) {
-      const grupo = grupos[nombreRuta];
-      const vehiculo = vehiculosDisponibles[vehiculoIdx % vehiculosDisponibles.length];
-      vehiculoIdx++;
+    for (const vehiculo of vehiculosAsignados) {
+      const grupo = gruposPorVehiculo[vehiculo.id];
+      const nombreRuta = grupo[0].cliente_ruta || `Vehículo ${vehiculo.placa}`;
 
-      console.log(`[rutas/generar] grupo "${nombreRuta}": ${grupo.length} pedidos, vehiculo #${vehiculo.id} (${vehiculo.placa}), sede: ${vehiculo.sede || '—'}`);
+      console.log(`[rutas/generar] vehículo #${vehiculo.id} (${vehiculo.placa}): ${grupo.length} pedidos`);
 
-      const pedidosGrupo = grupo.map(p => ({ ...p, vehiculo_id: vehiculo.id }));
-
-      const resultado = await generarRutasOptimizadas(pedidosGrupo, [vehiculo], osrmUrl, depot);
-      console.log(`[rutas/generar] resultado grupo "${nombreRuta}":`, resultado);
+      const resultado = await generarRutasOptimizadas(grupo, [vehiculo], osrmUrl, depot);
+      console.log(`[rutas/generar] resultado vehículo #${vehiculo.id}:`, resultado);
 
       if (!resultado.exitosa || resultado.rutas.length === 0) {
-        console.log(`[rutas/generar] grupo "${nombreRuta}" no generó ruta:`, resultado.error || 'sin rutas');
+        console.log(`[rutas/generar] vehículo #${vehiculo.id} no generó ruta:`, resultado.error || 'sin rutas');
         continue;
       }
 
       const rOpt = resultado.rutas[0];
-      const nombre = `${nombreRuta} - ${fecha}`;
+      const nombre = `${nombreRuta} - ${vehiculo.placa} - ${fecha}`;
       const nuevaRuta = await pool.query(
         `INSERT INTO logistics.rutas (nombre, fecha, vehiculo_id, sede, distancia_total_estimada,
          tiempo_estimado, estado, cantidad_paradas)
@@ -184,7 +187,7 @@ router.post('/generar', async (req, res) => {
 
     res.status(201).json({
       exitosa: true,
-      mensaje: `${rutasCreadas.length} ruta(s) creada(s) de ${nombresRuta.length} grupo(s)`,
+      mensaje: `${rutasCreadas.length} ruta(s) creada(s) de ${vehiculosAsignados.length} vehículo(s)`,
       rutas: rutasCreadas
     });
   } catch (err) {
