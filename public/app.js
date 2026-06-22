@@ -176,6 +176,23 @@ function cerrarModal() {
 document.getElementById('modal-overlay').addEventListener('click', function(e) {
   if (e.target === this) cerrarModal();
 });
+
+/* ── Toast ── */
+function mostrarAlerta(mensaje, tipo) {
+  tipo = tipo || 'info';
+  const iconos = { error:'✕', success:'✓', warning:'!', info:'i' };
+  const div = document.createElement('div');
+  div.className = 'toast ' + tipo;
+  div.innerHTML = '<span class="icon">' + (iconos[tipo] || 'i') + '</span><span class="text">' + mensaje + '</span>';
+  div.onclick = function() { descartarToast(div); };
+  document.getElementById('toast-container').appendChild(div);
+  setTimeout(() => descartarToast(div), 4000);
+}
+function descartarToast(el) {
+  if (!el || el.classList.contains('removing')) return;
+  el.classList.add('removing');
+  setTimeout(() => el.remove(), 300);
+}
 document.getElementById('modal-forgot')?.addEventListener('click', function(e) {
   if (e.target === this) cerrarForgot();
 });
@@ -277,7 +294,7 @@ async function poblarSedesVehiculo() {
 }
 
 function editarVehiculo(id) {
-  api('/vehiculos/' + id).then(d => abrirModalVehiculo(d.vehiculo)).catch(e => alert(e.message));
+  api('/vehiculos/' + id).then(d => abrirModalVehiculo(d.vehiculo)).catch(e => mostrarAlerta(e.message, 'error'));
 }
 
 async function guardarVehiculo(id) {
@@ -289,13 +306,13 @@ async function guardarVehiculo(id) {
     capacidad_volumen: +document.getElementById('v-vol').value,
     estado: document.getElementById('v-estado').value
   };
-  if (!body.placa) { alert('La placa es requerida'); return; }
+  if (!body.placa) { mostrarAlerta('La placa es requerida', 'warning'); return; }
   try {
     if (id) await api('/vehiculos/' + id, { method: 'PUT', body: JSON.stringify(body) });
     else await api('/vehiculos', { method: 'POST', body: JSON.stringify(body) });
     cerrarModal();
     cargarVehiculos();
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── Pedidos ── */
@@ -352,7 +369,7 @@ async function verPedido(id) {
         <div><strong>Última actualización:</strong><br>${p.updated_at ? new Date(p.updated_at).toLocaleString('es-CO') : '—'}</div>
       </div>`;
     document.getElementById('modal-pedido').classList.add('show');
-  } catch (e) { alert('Error: ' + e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── Clientes ── */
@@ -446,7 +463,7 @@ function abrirModalPedido(data) {
 }
 
 function editarPedido(id) {
-  api('/pedidos/' + id).then(d => abrirModalPedido(d.pedido)).catch(e => alert(e.message));
+  api('/pedidos/' + id).then(d => abrirModalPedido(d.pedido)).catch(e => mostrarAlerta(e.message, 'error'));
 }
 
 async function guardarPedido(id) {
@@ -463,13 +480,13 @@ async function guardarPedido(id) {
     sede: document.getElementById('p-sede').value,
     vehiculo_id: document.getElementById('p-vehiculo').value || null
   };
-  if (!body.numero_factura) { alert('La factura es requerida'); return; }
+  if (!body.numero_factura) { mostrarAlerta('La factura es requerida', 'warning'); return; }
   try {
     if (id) await api('/pedidos/' + id, { method: 'PUT', body: JSON.stringify(body) });
     else await api('/pedidos', { method: 'POST', body: JSON.stringify(body) });
     cerrarModal();
     cargarPedidos();
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── CRUD: Clientes ── */
@@ -497,7 +514,7 @@ function abrirModalCliente(data) {
 }
 
 function editarCliente(id) {
-  api('/clientes/' + id).then(d => abrirModalCliente(d.cliente)).catch(e => alert(e.message));
+  api('/clientes/' + id).then(d => abrirModalCliente(d.cliente)).catch(e => mostrarAlerta(e.message, 'error'));
 }
 
 async function guardarCliente(id) {
@@ -509,13 +526,13 @@ async function guardarCliente(id) {
     latitud: document.getElementById('c-lat').value ? +document.getElementById('c-lat').value : null,
     longitud: document.getElementById('c-lng').value ? +document.getElementById('c-lng').value : null
   };
-  if (!body.nombre) { alert('El nombre es requerido'); return; }
+  if (!body.nombre) { mostrarAlerta('El nombre es requerido', 'warning'); return; }
   try {
     if (id) await api('/clientes/' + id, { method: 'PUT', body: JSON.stringify(body) });
     else await api('/clientes', { method: 'POST', body: JSON.stringify(body) });
     cerrarModal();
     cargarClientes();
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── CRUD: Sedes ── */
@@ -572,7 +589,7 @@ function abrirModalSede(data) {
 }
 
 function editarSede(id) {
-  api('/sedes/' + id).then(d => abrirModalSede(d.sede)).catch(e => alert(e.message));
+  api('/sedes/' + id).then(d => abrirModalSede(d.sede)).catch(e => mostrarAlerta(e.message, 'error'));
 }
 
 async function guardarSede(id) {
@@ -589,13 +606,13 @@ async function guardarSede(id) {
     const activoEl = document.getElementById('s-activo');
     if (activoEl) body.activo = activoEl.value === 'true';
   }
-  if (!body.nombre) { alert('El nombre es requerido'); return; }
+  if (!body.nombre) { mostrarAlerta('El nombre es requerido', 'warning'); return; }
   try {
     if (id) await api('/sedes/' + id, { method: 'PUT', body: JSON.stringify(body) });
     else await api('/sedes', { method: 'POST', body: JSON.stringify(body) });
     cerrarModal();
     cargarSedes();
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── Eliminar (genérico) ── */
@@ -610,7 +627,7 @@ function confirmarEliminar(tipo, id, label) {
     else if (tipo === 'cliente') cargarClientes();
     else if (tipo === 'sede') cargarSedes();
     else if (tipo === 'ruta') cargarRutas();
-  }).catch(e => alert(e.message));
+  }).catch(e => mostrarAlerta(e.message, 'error'));
 }
 
 /* ── Bulk delete ── */
@@ -647,7 +664,7 @@ async function eliminarSeleccionados(tipo) {
     else if (tipo === 'pedido') cargarPedidos();
     else if (tipo === 'cliente') cargarClientes();
     else if (tipo === 'ruta') cargarRutas();
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── Rutas ── */
@@ -723,7 +740,7 @@ async function verRuta(id) {
       `<button class="btn btn-secondary" onclick="cerrarRutaDetalle()">Cerrar</button>`
     );
     if (tienenCoords) setTimeout(() => initMapaRutaDetalle(paradas), 200);
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 function initMapaRutaDetalle(paradas) {
@@ -751,7 +768,7 @@ function cerrarRutaDetalle() {
 
 async function generarRutas() {
   const fecha = document.getElementById('filtro-fecha').value;
-  if (!fecha) { alert('Selecciona una fecha'); return; }
+  if (!fecha) { mostrarAlerta('Selecciona una fecha', 'warning'); return; }
   const sedeSelect = document.getElementById('filtro-rutas-sede');
   const sedeNombre = sedeSelect?.value || '';
   let sedeId = null;
@@ -765,9 +782,9 @@ async function generarRutas() {
     const body = { fecha };
     if (sedeId) body.sede_id = sedeId;
     const data = await api('/rutas/generar', { method: 'POST', body: JSON.stringify(body) });
-    alert(data.mensaje || 'Rutas generadas');
+    mostrarAlerta(data.mensaje || 'Rutas generadas', 'success');
     cargarRutas();
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── Importadores ── */
@@ -912,7 +929,7 @@ function editarUsuario(id) {
   api('/usuarios').then(d => {
     const u = d.usuarios.find(x => x.id === id);
     if (u) abrirModalUsuario(u);
-  }).catch(e => alert(e.message));
+  }).catch(e => mostrarAlerta(e.message, 'error'));
 }
 
 async function guardarUsuario(id) {
@@ -928,14 +945,14 @@ async function guardarUsuario(id) {
   } else {
     body.password = document.getElementById('u-pass').value;
   }
-  if (!body.nombre || !body.email) { alert('Nombre y email requeridos'); return; }
-  if (!id && !body.password) { alert('Contraseña requerida'); return; }
+  if (!body.nombre || !body.email) { mostrarAlerta('Nombre y email requeridos', 'warning'); return; }
+  if (!id && !body.password) { mostrarAlerta('Contraseña requerida', 'warning'); return; }
   try {
     if (id) await api('/usuarios/' + id, { method: 'PUT', body: JSON.stringify(body) });
     else await api('/usuarios', { method: 'POST', body: JSON.stringify(body) });
     cerrarModal();
     cargarUsuarios();
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── Configuración ── */
@@ -1074,7 +1091,7 @@ async function descargarBackup() {
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(a.href);
     document.getElementById('backup-ok').style.display = 'block';
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 async function cargarUltimoBackup() {
@@ -1110,15 +1127,15 @@ async function descargarBackupServidor(nombre) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = nombre;
     document.body.appendChild(a); a.click(); a.remove();
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 async function restaurarBackupLocal(nombre) {
   if (!confirm('¿Restaurar backup ' + nombre + '? Los datos actuales serán reemplazados.')) return;
   try {
     const data = await api('/backup/restore/local/' + encodeURIComponent(nombre), { method: 'POST' });
-    alert(data.mensaje || 'Restauración completada');
-  } catch (e) { alert(e.message); }
+    mostrarAlerta(data.mensaje || 'Restauración completada', 'success');
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 async function ejecutarBackupScript() {
@@ -1277,7 +1294,7 @@ async function desbloquearIP(ip) {
   try {
     await api('/auth/ratelimit-status/' + encodeURIComponent(ip), { method: 'DELETE' });
     cargarSecStatus();
-  } catch (e) { alert(e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── Password Change ── */
@@ -1451,7 +1468,7 @@ async function checkUpdates() {
     } else {
       if (nc) nc.style.display = 'block';
     }
-  } catch (e) { alert('Error verificando: ' + e.message); }
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
   if (btn) { btn.disabled = false; btn.innerHTML = '🔍 Verificar'; }
 }
 
@@ -1485,7 +1502,7 @@ async function ejecutarActualizacion() {
     await cargarLogActualizacion();
   } catch (e) {
     clearInterval(updatePolling);
-    alert('Error: ' + e.message);
+    mostrarAlerta(e.message, 'error');
   } finally {
     btn.disabled = false; btn.textContent = '🚀 Actualizar ahora';
   }
