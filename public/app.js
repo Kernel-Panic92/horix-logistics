@@ -1,8 +1,16 @@
-const API = '/api';
+const BASE = location.pathname.startsWith('/logistics/') ? '/logistics' : '';
+const API = BASE + '/api';
 let TOKEN = localStorage.getItem('logistics_token');
 let USER = null;
 
 /* ── API wrapper ── */
+function logout() {
+  TOKEN = null; USER = null;
+  localStorage.removeItem('logistics_token');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
+
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
