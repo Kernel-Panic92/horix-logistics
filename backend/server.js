@@ -90,6 +90,9 @@ app.get('/api/version', (req, res) => {
   }
 });
 
+// Health check para el launcher (GET /health)
+app.get('/health', (req, res) => res.json({ status: 'ok', module: 'logistics' }));
+
 // MCP endpoint
 import { createMiddleware } from './mcp/index.js';
 app.use('/mcp', createMiddleware());
